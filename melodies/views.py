@@ -8,6 +8,8 @@ from melodies.models import Chant
 from melodies.serializers import ChantSerializer
 from rest_framework.decorators import api_view
 
+from core.text_functions import get_html_repr
+
 @api_view(['GET', 'POST', 'DELETE'])
 def melody_list(request):
     if request.method == 'GET':
@@ -53,4 +55,16 @@ def melody_detail(request, pk):
     elif request.method == 'DELETE': 
         melody.delete() 
         return JsonResponse({'message': 'Chant was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+def chant_display(request, pk):
+    try:
+        chant = Chant.objects.get(id=pk)
+    except Chant.DoesNotExist:
+        return JsonResponse({'message': 'The chant does not exist'}, status=status.HTTP_404_NOT_FOUND)   
+
+    html = get_html_repr(chant.full_text, chant.volpiano)
+    return JsonResponse({'html': html})
+          
 
