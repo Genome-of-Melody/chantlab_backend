@@ -14,10 +14,10 @@ def get_stressed_syllables(text):
     return stresses
 
 
-def get_html_repr(text, melody):
+def get_JSON(text, melody):
     converter = chant21.cantus.ConverterCantusVolpiano(strict=True)
     converter.parseData(melody + '/' + text)
     chant = converter.stream
 
-    return chant.toHTML()
+    return chant.toCHSON()
 

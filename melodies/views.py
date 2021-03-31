@@ -8,7 +8,8 @@ from melodies.models import Chant
 from melodies.serializers import ChantSerializer
 from rest_framework.decorators import api_view
 
-from core.text_functions import get_html_repr
+from core.chant_processing import get_JSON, get_stressed_syllables
+import json
 
 @api_view(['GET', 'POST', 'DELETE'])
 def melody_list(request):
@@ -64,7 +65,8 @@ def chant_display(request, pk):
     except Chant.DoesNotExist:
         return JsonResponse({'message': 'The chant does not exist'}, status=status.HTTP_404_NOT_FOUND)   
 
-    html = get_html_repr(chant.full_text, chant.volpiano)
-    return JsonResponse({'html': html})
+    chant_json = get_JSON(chant.full_text, chant.volpiano)
+    stresses = get_stressed_syllables(chant.full_text)
+    return JsonResponse({'json': json.loads(chant_json), 'stresses': stresses})
           
 
