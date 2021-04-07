@@ -11,7 +11,7 @@ from rest_framework.decorators import api_view
 from core.chant_processing import get_JSON, get_stressed_syllables
 import json
 
-@api_view(['GET', 'POST', 'DELETE'])
+@api_view(['GET'])
 def melody_list(request):
     if request.method == 'GET':
         melodies = Chant.objects.all()
@@ -35,7 +35,7 @@ def melody_list(request):
         return JsonResponse({'message': '{} Melodies were deleted successfully!'.format(count[0])}, status=status.HTTP_204_NO_CONTENT)
  
  
-@api_view(['GET', 'PUT', 'DELETE'])
+@api_view(['GET'])
 def melody_detail(request, pk):
     # find chant by pk (id)
     try: 
