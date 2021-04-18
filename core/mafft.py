@@ -29,6 +29,16 @@ class Mafft():
         self._prefix = prefix
 
 
+    def add_volpiano(volpiano):
+        if not self._input:
+            raise RuntimeError("Input file must be defined"
+                               "before adding a chant")
+                               
+        processed = _preprocess_volpiano(volpiano)
+        with open(self._input, 'a') as file:
+            file.write(processed)
+
+
     def run(self):
         command = ""
         command += self._prefix + " " if self._prefix else ""
@@ -46,6 +56,13 @@ class Mafft():
                     out.write(process.stdout)
             else:
                 print(process.stdout)
+
+
+def _preprocess_volpiano(volpiano):
+    res = volpiano.replace("---", "~")      # word separator
+    res = res.replace("--", "|")            # syllable separator
+    res = res.replace("-", "")              # remove all other -s
+    return res
 
 
 

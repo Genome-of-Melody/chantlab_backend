@@ -68,5 +68,11 @@ def chant_display(request, pk):
     chant_json = get_JSON(chant.full_text, chant.volpiano)
     stresses = get_stressed_syllables(chant.full_text)
     return JsonResponse({'json': json.loads(chant_json), 'stresses': stresses})
+
+
+@api_view(['GET'])
+def chant_align(request):
+    ids = request.query_params.get('ids', None)
+    return JsonResponse({'ids': ids})
           
 
