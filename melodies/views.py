@@ -8,7 +8,7 @@ from melodies.models import Chant
 from melodies.serializers import ChantSerializer
 from rest_framework.decorators import api_view
 
-from core.chant_processing import get_JSON, get_stressed_syllables
+from core.chant import get_JSON, get_stressed_syllables, get_syllables, align_syllables_and_volpiano
 from core.mafft import Mafft
 import json
 
@@ -75,6 +75,7 @@ def chant_display(request, pk):
 def chant_align(request):
     ids = JSONParser().parse(request)
 
+    texts = []
     mafft = Mafft()
     mafft.set_input('tmp.txt')
     mafft.add_option('--text')
@@ -86,10 +87,16 @@ def chant_align(request):
                 status=status.HTTP_404_NOT_FOUND)
 
         mafft.add_volpiano(chant.volpiano)
+        texts.append(chant.full_text)
 
     mafft.run()
     sequences = mafft.get_aligned_sequences()
+    syllables = [get_syllables(text) for text in texts]
+    chants = []
+    for i, sequence in enumerate(sequences):
+        chants.append(align_syllables_and_volpiano(syllables[i], sequence))
 
-    return JsonResponse({'chants': sequences})
+
+    return JsonResponse({'chants': chants})
           
 
