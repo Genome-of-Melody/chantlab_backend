@@ -71,13 +71,10 @@ def chant_display(request, pk):
     return JsonResponse({'json': json.loads(chant_json), 'stresses': stresses})
 
 
-@api_view(['GET'])
+@api_view(['POST'])
 def chant_align(request):
-    id_params = request.query_params.get('ids', None)
-    if not id_params:
-        raise ValidationError("No chants have been selected")
-    
-    ids = [int(id) for id in id_params.split(',')]
+    ids = JSONParser().parse(request)
+
     mafft = Mafft()
     mafft.set_input('tmp.txt')
     mafft.add_option('--text')
@@ -93,6 +90,6 @@ def chant_align(request):
     mafft.run()
     sequences = mafft.get_aligned_sequences()
 
-    return JsonResponse({'ids': sequences})
+    return JsonResponse({'chants': sequences})
           
 
