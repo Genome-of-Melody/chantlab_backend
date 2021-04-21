@@ -11,6 +11,7 @@ from rest_framework.decorators import api_view
 from core.chant import get_JSON, get_stressed_syllables, get_syllables, align_syllables_and_volpiano
 from core.mafft import Mafft
 import json
+import os
 
 @api_view(['GET'])
 def melody_list(request):
@@ -96,6 +97,8 @@ def chant_align(request):
     for i, sequence in enumerate(sequences):
         chants.append(align_syllables_and_volpiano(syllables[i], sequence))
 
+    if os.path.exists('tmp.txt'):
+        os.remove('tmp.txt')
 
     return JsonResponse({'chants': chants})
           
