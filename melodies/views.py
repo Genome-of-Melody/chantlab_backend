@@ -9,6 +9,7 @@ from melodies.serializers import ChantSerializer
 from rest_framework.decorators import api_view
 
 from core.chant_processing import get_JSON, get_stressed_syllables
+from core.mafft import Mafft
 import json
 
 @api_view(['GET'])
@@ -72,7 +73,26 @@ def chant_display(request, pk):
 
 @api_view(['GET'])
 def chant_align(request):
-    ids = request.query_params.get('ids', None)
-    return JsonResponse({'ids': ids})
+    id_params = request.query_params.get('ids', None)
+    if not id_params:
+        raise ValidationError("No chants have been selected")
+    
+    ids = [int(id) for id in id_params.split(',')]
+    mafft = Mafft()
+    mafft.set_input('tmp.txt')
+    mafft.add_option('--text')
+    for id in ids:
+        try:
+            chant = Chant.objects.get(id=id)
+        except Chant.DoesNotExist:
+            return JsonResponse({'message': 'Chant with id ' + str(id) + ' does not exist'},
+                status=status.HTTP_404_NOT_FOUND)
+
+        mafft.add_volpiano(chant.volpiano)
+
+    mafft.run()
+    sequences = mafft.get_aligned_sequences()
+
+    return JsonResponse({'ids': sequences})
           
 

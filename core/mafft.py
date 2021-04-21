@@ -8,6 +8,8 @@ class Mafft():
         self._options = ['--quiet']
         # this should eventually be removed
         self._prefix = "wsl"
+        self._counter = 0
+        self._process = None
 
 
     def set_input(self, file):
@@ -19,24 +21,53 @@ class Mafft():
         self._output = file
 
     
-    def add_option(flag, value=None):
+    def add_option(self, flag, value=None):
         self._options.append(flag)
         if value:
             self._options.append(value)
 
 
-    def set_prefix(prefix):
+    def set_prefix(self, prefix):
         self._prefix = prefix
 
 
-    def add_volpiano(volpiano):
+    def add_volpiano(self, volpiano):
         if not self._input:
             raise RuntimeError("Input file must be defined"
                                "before adding a chant")
                                
         processed = _preprocess_volpiano(volpiano)
         with open(self._input, 'a') as file:
-            file.write(processed)
+            file.write("> sequence " + str(self._counter) + "\n")
+            file.write(processed + "\n")
+            self._counter += 1
+
+    
+    def get_aligned_sequences(self):
+        if not self._process:
+            raise RuntimeError("The process hasn't been run yet")
+        
+        if not self._process.stdout:
+            raise RuntimeError("No aligned sequences found")
+
+        stdout = self._process.stdout.decode('utf-8')
+        sequences = []
+        cur_sequence = ""
+        for part_sequence in stdout.split('\n'):
+            # we are at the end of the output, only empty string remains
+            if cur_sequence and not part_sequence:
+                sequences.append(cur_sequence)
+                cur_sequence = ""
+            # row with the name of the sequence
+            elif part_sequence and part_sequence[0] == '>':
+                if cur_sequence:
+                    sequences.append(cur_sequence)
+                cur_sequence = ""
+            # parts of the current sequence
+            elif part_sequence and part_sequence[0] != '>':
+                cur_sequence += part_sequence
+
+        return sequences
 
 
     def run(self):
@@ -54,8 +85,8 @@ class Mafft():
             if self._output:
                 with open(self._output, 'w') as out:
                     out.write(process.stdout)
-            else:
-                print(process.stdout)
+
+        self._process = process
 
 
 def _preprocess_volpiano(volpiano):
