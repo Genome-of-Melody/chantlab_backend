@@ -15,9 +15,10 @@ def get_syllables(text):
 def align_syllables_and_volpiano(syllables, volpiano):
 
     whole_words = volpiano.split('~')
+    print(whole_words)
     # check if clef is present and remove first and last words
     if not whole_words or whole_words[0] != '1':
-        raise RuntimeError("Incorrect volpiano format")
+        raise RuntimeError("Incorrect volpiano format - no clef")
     whole_words = whole_words[1:-1]
 
     # start sequence with a clef
@@ -55,7 +56,7 @@ def align_syllables_and_volpiano(syllables, volpiano):
         for j, syllable in enumerate(word):
             # this should not happen
             if not syllable:
-                raise RuntimeError("Incorrect volpiano format")
+                raise RuntimeError("Incorrect volpiano format - no syllable")
             
             current_word.append({
                 'type': 'syllable',

@@ -46,6 +46,9 @@ class Mafft():
     def get_aligned_sequences(self):
         if not self._process:
             raise RuntimeError("The process hasn't been run yet")
+
+        if self._process.stderr:
+            raise RuntimeError(self._process.stderr)
         
         if not self._process.stdout:
             raise RuntimeError("No aligned sequences found")

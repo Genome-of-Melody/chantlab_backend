@@ -74,12 +74,17 @@ def chant_display(request, pk):
 
 @api_view(['POST'])
 def chant_align(request):
+    tmp_url = ''
     ids = JSONParser().parse(request)
+
+    # to make sure the file is empty
+    _cleanup(tmp_url + 'tmp.txt')
 
     texts = []
     mafft = Mafft()
-    mafft.set_input('tmp.txt')
+    mafft.set_input(tmp_url + 'tmp.txt')
     mafft.add_option('--text')
+
     for id in ids:
         try:
             chant = Chant.objects.get(id=id)
@@ -90,16 +95,27 @@ def chant_align(request):
         mafft.add_volpiano(chant.volpiano)
         texts.append(chant.full_text)
 
-    mafft.run()
+    try:
+        mafft.run()
+    except RuntimeError as e:
+        _cleanup(tmp_url + 'tmp.txt')
+        return JsonResponse({'message': e}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     sequences = mafft.get_aligned_sequences()
     syllables = [get_syllables(text) for text in texts]
     chants = []
     for i, sequence in enumerate(sequences):
-        chants.append(align_syllables_and_volpiano(syllables[i], sequence))
+        try:
+            chants.append(align_syllables_and_volpiano(syllables[i], sequence))
+        except RuntimeError as e:
+            _cleanup(tmp_url + 'tmp.txt')
+            return JsonResponse({'message': e}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    if os.path.exists('tmp.txt'):
-        os.remove('tmp.txt')
+    _cleanup(tmp_url + 'tmp.txt')
 
     return JsonResponse({'chants': chants})
           
 
+def _cleanup(file):
+    if os.path.exists(file):
+        os.remove(file)
