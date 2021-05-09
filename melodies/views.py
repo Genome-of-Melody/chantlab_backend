@@ -91,6 +91,9 @@ def chant_align(request):
     mafft.set_input(tmp_url + 'tmp.txt')
     mafft.add_option('--text')
 
+    # save errors
+    error_align = []
+
     for id in ids:
         try:
             chant = Chant.objects.get(id=id)
@@ -105,7 +108,8 @@ def chant_align(request):
         mafft.run()
     except RuntimeError as e:
         _cleanup(tmp_url + 'tmp.txt')
-        return JsonResponse({'message': e}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JsonResponse({'message': 'There was a problem with MAFFT'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     sequences = mafft.get_aligned_sequences()
     syllables = [get_syllables(text) for text in texts]
@@ -114,12 +118,11 @@ def chant_align(request):
         try:
             chants.append(align_syllables_and_volpiano(syllables[i], sequence))
         except RuntimeError as e:
-            _cleanup(tmp_url + 'tmp.txt')
-            return JsonResponse({'message': e}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            error_align.append(i)
 
     _cleanup(tmp_url + 'tmp.txt')
 
-    return JsonResponse({'chants': chants})
+    return JsonResponse({'chants': chants, 'errors': error_align})
           
 
 def _cleanup(file):
