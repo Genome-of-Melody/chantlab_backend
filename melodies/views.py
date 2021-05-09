@@ -67,9 +67,15 @@ def chant_display(request, pk):
     except Chant.DoesNotExist:
         return JsonResponse({'message': 'The chant does not exist'}, status=status.HTTP_404_NOT_FOUND)   
 
-    chant_json = get_JSON(chant.full_text, chant.volpiano)
+    try:
+        chant_json = get_JSON(chant.full_text, chant.volpiano)
+    except:
+        chant_json = None
     stresses = get_stressed_syllables(chant.full_text)
-    return JsonResponse({'json': json.loads(chant_json), 'stresses': stresses})
+    return JsonResponse({
+        'db_source': ChantSerializer(chant).data,
+        'json_volpiano': json.loads(chant_json) if chant_json else None, 
+        'stresses': stresses})
 
 
 @api_view(['POST'])
