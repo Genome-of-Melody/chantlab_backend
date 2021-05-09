@@ -93,6 +93,7 @@ def chant_align(request):
 
     # save errors
     error_align = []
+    success_ids = []
 
     for id in ids:
         try:
@@ -117,12 +118,13 @@ def chant_align(request):
     for i, sequence in enumerate(sequences):
         try:
             chants.append(align_syllables_and_volpiano(syllables[i], sequence))
+            success_ids.append(ids[i])
         except RuntimeError as e:
             error_align.append(i)
 
     _cleanup(tmp_url + 'tmp.txt')
 
-    return JsonResponse({'chants': chants, 'errors': error_align})
+    return JsonResponse({'chants': chants, 'errors': error_align, 'success': success_ids})
           
 
 def _cleanup(file):
