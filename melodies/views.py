@@ -92,12 +92,16 @@ def chant_align(request):
     mafft.add_option('--text')
 
     # save errors
-    error_align = []
+    sources = []
+    error_sources = []
+    success_sources = []
     success_ids = []
 
     for id in ids:
         try:
             chant = Chant.objects.get(id=id)
+            source = chant.siglum + ", " + chant.position + ", " + chant.folio
+            sources.append(source)
         except Chant.DoesNotExist:
             return JsonResponse({'message': 'Chant with id ' + str(id) + ' does not exist'},
                 status=status.HTTP_404_NOT_FOUND)
@@ -118,13 +122,22 @@ def chant_align(request):
     for i, sequence in enumerate(sequences):
         try:
             chants.append(align_syllables_and_volpiano(syllables[i], sequence))
+            success_sources.append(sources[i])
             success_ids.append(ids[i])
         except RuntimeError as e:
-            error_align.append(i)
+            error_sources.append(sources[i])
 
     _cleanup(tmp_url + 'tmp.txt')
 
-    return JsonResponse({'chants': chants, 'errors': error_align, 'success': success_ids})
+    response = JsonResponse({
+        'chants': chants,
+        'errors': error_sources, 
+        'success': {
+            'sources': success_sources,
+            'ids': success_ids
+        }})
+
+    return response
           
 
 def _cleanup(file):
