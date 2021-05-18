@@ -100,7 +100,10 @@ def chant_align(request):
     for id in ids:
         try:
             chant = Chant.objects.get(id=id)
-            source = chant.siglum + ", " + chant.position + ", " + chant.folio
+            siglum = chant.siglum if chant.siglum else ""
+            position = chant.position if chant.position else ""
+            folio = chant.folio if chant.folio else ""
+            source = siglum + ", " + position + ", " + folio
             sources.append(source)
         except Chant.DoesNotExist:
             return JsonResponse({'message': 'Chant with id ' + str(id) + ' does not exist'},
