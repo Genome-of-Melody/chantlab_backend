@@ -96,6 +96,7 @@ def chant_align(request):
     error_sources = []
     success_sources = []
     success_ids = []
+    success_volpianos = []
 
     for id in ids:
         try:
@@ -127,6 +128,7 @@ def chant_align(request):
             chants.append(align_syllables_and_volpiano(syllables[i], sequence))
             success_sources.append(sources[i])
             success_ids.append(ids[i])
+            success_volpianos.append(sequence)
         except RuntimeError as e:
             error_sources.append(sources[i])
 
@@ -137,7 +139,8 @@ def chant_align(request):
         'errors': error_sources, 
         'success': {
             'sources': success_sources,
-            'ids': success_ids
+            'ids': success_ids,
+            'volpianos': success_volpianos
         }})
 
     return response

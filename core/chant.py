@@ -15,7 +15,6 @@ def get_syllables(text):
 def align_syllables_and_volpiano(syllables, volpiano):
 
     whole_words = volpiano.split('~')
-    print(whole_words)
     # check if clef is present and remove first and last words
     if not whole_words or whole_words[0] != '1':
         raise RuntimeError("Incorrect volpiano format - no clef")
