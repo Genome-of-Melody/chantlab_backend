@@ -79,6 +79,14 @@ def chant_display(request, pk):
 
 
 @api_view(['POST'])
+def upload_data(request):
+    print(request.FILES)
+    if request.FILES['fileKey']:
+        print("file uploaded")
+        return JsonResponse({"result": "done"})
+
+
+@api_view(['POST'])
 def chant_align(request):
     tmp_url = ''
     ids = JSONParser().parse(request)
@@ -93,10 +101,12 @@ def chant_align(request):
 
     # save errors
     sources = []
+    urls = []
     error_sources = []
     success_sources = []
     success_ids = []
     success_volpianos = []
+    success_urls = []
 
     for id in ids:
         try:
@@ -106,6 +116,7 @@ def chant_align(request):
             folio = chant.folio if chant.folio else ""
             source = siglum + ", " + position + ", " + folio
             sources.append(source)
+            urls.append(chant.drupal_path)
         except Chant.DoesNotExist:
             return JsonResponse({'message': 'Chant with id ' + str(id) + ' does not exist'},
                 status=status.HTTP_404_NOT_FOUND)
@@ -129,6 +140,7 @@ def chant_align(request):
             success_sources.append(sources[i])
             success_ids.append(ids[i])
             success_volpianos.append(sequence)
+            success_urls.append(urls[i])
         except RuntimeError as e:
             error_sources.append(sources[i])
 
@@ -140,7 +152,8 @@ def chant_align(request):
         'success': {
             'sources': success_sources,
             'ids': success_ids,
-            'volpianos': success_volpianos
+            'volpianos': success_volpianos,
+            'urls': success_urls
         }})
 
     return response
