@@ -2,7 +2,6 @@ from django.db import models
 
 
 class Chant(models.Model):
-    id = models.IntegerField(blank=True, primary_key=True)
     corpus_id = models.TextField(blank=True, null=True)
     incipit = models.TextField(blank=True, null=True)
     cantus_id = models.TextField(blank=True, null=True)
@@ -25,6 +24,8 @@ class Chant(models.Model):
     full_text_manuscript = models.TextField(blank=True, null=True)
     volpiano = models.TextField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
+    dataset_name = models.TextField(blank=True, null=True)
+    dataset_idx = models.IntegerField(blank=True, null=True)
 
     class Meta:
         managed = False

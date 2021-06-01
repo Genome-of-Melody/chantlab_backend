@@ -10,4 +10,5 @@ class ChantSerializer(serializers.ModelSerializer):
             'mode', 'finalis', 'differentia', 'siglum', 'position', 
             'folio', 'sequence', 'marginalia', 'cao_concordances', 
             'feast_id', 'genre_id', 'office_id', 'source_id', 'melody_id', 
-            'drupal_path', 'full_text', 'full_text_manuscript', 'volpiano', 'notes')
+            'drupal_path', 'full_text', 'full_text_manuscript', 'volpiano', 'notes',
+            'dataset_name', 'dataset_idx')

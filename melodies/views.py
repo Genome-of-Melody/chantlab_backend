@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.db.models import Max
 
 from django.http.response import JsonResponse
 from rest_framework.parsers import JSONParser 
@@ -11,6 +12,9 @@ from rest_framework.decorators import api_view
 from core.chant import get_JSON, get_stressed_syllables, get_syllables, align_syllables_and_volpiano
 from core.mafft import Mafft
 import json
+import os
+import pandas as pd
+import sqlite3
 import os
 
 @api_view(['GET'])
@@ -41,7 +45,7 @@ def melody_list(request):
 def melody_detail(request, pk):
     # find chant by pk (id)
     try: 
-        melody = Chant.objects.get(id=pk) 
+        melody = Chant.objects.get(pk=pk) 
     except Chant.DoesNotExist: 
         return JsonResponse({'message': 'The melody does not exist'}, status=status.HTTP_404_NOT_FOUND) 
 
@@ -80,9 +84,23 @@ def chant_display(request, pk):
 
 @api_view(['POST'])
 def upload_data(request):
-    print(request.FILES)
-    if request.FILES['fileKey']:
-        print("file uploaded")
+    if request.FILES['file']:
+        # establish db connection
+        con = sqlite3.connect("chants.db")
+
+        # read the provided file
+        df = pd.read_csv(request.FILES['file'])
+
+        # change the database to fit the format
+        df.rename(columns={'id': 'corpus_id'}, inplace=True)
+        df.drop(['Unnamed: 0'], axis=1, inplace=True)
+        df['dataset_name'] = request.POST['name']
+        max_idx = Chant.objects.aggregate(Max('dataset_idx'))['dataset_idx__max']
+        df['dataset_idx'] = max_idx + 1
+
+        # append data to database
+        df.to_sql('chant', con, if_exists='append', index=False)
+
         return JsonResponse({"result": "done"})
 
 
@@ -110,7 +128,7 @@ def chant_align(request):
 
     for id in ids:
         try:
-            chant = Chant.objects.get(id=id)
+            chant = Chant.objects.get(pk=id)
             siglum = chant.siglum if chant.siglum else ""
             position = chant.position if chant.position else ""
             folio = chant.folio if chant.folio else ""
