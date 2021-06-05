@@ -135,3 +135,5 @@ CORS_ORIGIN_WHITELIST = (
     'http://localhost:8081',
     'http://localhost:4200'
 )
+
+SESSION_COOKIE_SAMESITE = None

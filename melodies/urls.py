@@ -2,9 +2,9 @@ from django.conf.urls import url
 from melodies import views 
  
 urlpatterns = [ 
-    url(r'^api/melodies$', views.melody_list),
-    url(r'^api/melodies/(?P<pk>[0-9]+)$', views.melody_detail),
-    url(r'^api/melodies/(?P<pk>[0-9]+)/detail$', views.chant_display),
-    url(r'^api/melodies/align/$', views.chant_align),
-    url(r'^api/melodies/upload/$', views.upload_data)
+    url(r'^api/chants/$', views.chant_list),
+    url(r'^api/chants/(?P<pk>[0-9]+)$', views.chant_display),
+    url(r'^api/chants/align/$', views.chant_align),
+    url(r'^api/chants/upload/$', views.upload_data),
+    url(r'^api/chants/selectDatasets/$', views.select_datasets)
 ]
