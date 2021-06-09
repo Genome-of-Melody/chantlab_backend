@@ -20,9 +20,7 @@ import os
 @api_view(['POST'])
 def chant_list(request):
     data_sources = JSONParser().parse(request)
-    print(data_sources)
     chants = Chant.objects.filter(dataset_idx__in=data_sources)
-    print(len(chants))
 
     title = request.GET.get('incipit', None)
     if title is not None:
@@ -109,18 +107,21 @@ def upload_data(request):
         df.drop(['Unnamed: 0'], axis=1, inplace=True)
         df['dataset_name'] = request.POST['name']
         max_idx = Chant.objects.aggregate(Max('dataset_idx'))['dataset_idx__max']
-        df['dataset_idx'] = max_idx + 1
+        new_index = max_idx + 1
+        df['dataset_idx'] = new_index
 
         # append data to database
         df.to_sql('chant', con, if_exists='append', index=False)
 
-        return JsonResponse({"result": "done"})
+        return JsonResponse({
+            "name": request.POST['name'],
+            "index": new_index})
 
 
-@api_view(['POST'])
-def select_datasets(request):
-    datasets = JSONParser().parse(request)
-    return JsonResponse({"result": "done"})
+@api_view(['GET'])
+def get_sources(request):
+    sources = Chant.objects.values_list('dataset_idx', 'dataset_name').distinct()
+    return JsonResponse({"sources": list(sources)})
 
 
 @api_view(['POST'])
