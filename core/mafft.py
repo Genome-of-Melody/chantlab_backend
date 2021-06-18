@@ -82,7 +82,7 @@ class Mafft():
         command += self._input + " " if self._input else ""
         # the --out option doesn't seem to be working?
         # command += "--out " + self._output if self._output else ""
-        process = subprocess.run(command, capture_output=True)
+        process = subprocess.run(command, capture_output=True, shell=True)
         if process.stderr:
             print(process.stderr)
         elif process.stdout:
