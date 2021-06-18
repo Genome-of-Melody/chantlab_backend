@@ -1,4 +1,5 @@
 import subprocess
+import sys
 
 class Mafft():
 
@@ -7,7 +8,7 @@ class Mafft():
         self._output = None
         self._options = ['--quiet']
         # this should eventually be removed
-        self._prefix = "wsl"
+        self._prefix = "wsl" if sys.platform.startswith("win") else ""
         self._counter = 0
         self._process = None
 
