@@ -91,8 +91,11 @@ def align_syllables_and_volpiano(syllables, volpiano):
 
 def get_stressed_syllables(text):
     text = re.sub('[^0-9a-zA-Z ]', ' ', text)       # remove non-alphanumeric characters
-    transcriber = Transcriber("Classical", "Allen")
-    transcription = transcriber.transcribe(text)
+    try:
+        transcriber = Transcriber("Classical", "Allen")
+        transcription = transcriber.transcribe(text)
+    except:
+        return []
     stressed_words = [word.split('.') for word in transcription.split()]
     stresses = [[1 if syllable[0] == '\'' else 0 for syllable in word] \
         for word in stressed_words]
