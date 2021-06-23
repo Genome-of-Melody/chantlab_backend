@@ -23,11 +23,11 @@ def align_syllables_and_volpiano(syllables, volpiano):
     # start sequence with a clef
     aligned = [[{
         'type': 'clef',
-        'volpiano': '1',
+        'volpiano': ['1'],
         'text': ''
     }, {
         'type': 'word-space',
-        'volpiano': '---',
+        'volpiano': ['-', '-', '-'],
         'text': ''
     }]]
 
@@ -57,32 +57,34 @@ def align_syllables_and_volpiano(syllables, volpiano):
             if not syllable:
                 raise RuntimeError("Incorrect volpiano format - no syllable")
             
+            volpiano = [char for char in syllable]
             current_word.append({
                 'type': 'syllable',
-                'volpiano': syllable,
+                'volpiano': volpiano,
                 'text': syllables[i][j]
             })
 
             if j != len(word) - 1:
                 current_word.append({
                     'type': 'syllable-space',
-                    'volpiano': '--',
+                    'volpiano': ['-', '-'],
                     'text': '-'
                 })
 
         # end word with a word space
-        current_word.append({
-            'type': 'word-space',
-            'volpiano': '---',
-            'text': ''
-        })
+        if i != len(words) - 1:
+            current_word.append({
+                'type': 'word-space',
+                'volpiano': ['-', '-', '-'],
+                'text': ''
+            })
 
         aligned.append(current_word)
 
     # finally, append end-of-sequence character
     aligned.append([{
         'type': 'end-sequence',
-        'volpiano': '4',
+        'volpiano': ['4'],
         'text': ''
     }])
 

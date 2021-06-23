@@ -132,57 +132,76 @@ def chant_align(request):
     # to make sure the file is empty
     _cleanup(tmp_url + 'tmp.txt')
 
-    texts = []
+    # setup mafft
     mafft = Mafft()
     mafft.set_input(tmp_url + 'tmp.txt')
     mafft.add_option('--text')
 
     # save errors
-    sources = []
-    urls = []
     error_sources = []
-    success_sources = []
-    success_ids = []
-    success_volpianos = []
-    success_urls = []
+    finished = False
 
-    for id in ids:
+    # iterate until there are no alignment errors
+    while not finished:
+        finished = True
+
+        sources = []
+        urls = []
+        texts = []
+
+        success_sources = []
+        success_ids = []
+        success_volpianos = []
+        success_urls = []
+
+        # store chant data
+        for id in ids:
+            try:
+                chant = Chant.objects.get(pk=id)
+                siglum = chant.siglum if chant.siglum else ""
+                position = chant.position if chant.position else ""
+                folio = chant.folio if chant.folio else ""
+                source = siglum + ", " + folio + ", " + position
+                sources.append(source)
+                urls.append(chant.drupal_path)
+            except Chant.DoesNotExist:
+                return JsonResponse({'message': 'Chant with id ' + str(id) + ' does not exist'},
+                    status=status.HTTP_404_NOT_FOUND)
+
+            mafft.add_volpiano(chant.volpiano)
+            texts.append(chant.full_text)
+
+        # align the melodies
         try:
-            chant = Chant.objects.get(pk=id)
-            siglum = chant.siglum if chant.siglum else ""
-            position = chant.position if chant.position else ""
-            folio = chant.folio if chant.folio else ""
-            source = siglum + ", " + position + ", " + folio
-            sources.append(source)
-            urls.append(chant.drupal_path)
-        except Chant.DoesNotExist:
-            return JsonResponse({'message': 'Chant with id ' + str(id) + ' does not exist'},
-                status=status.HTTP_404_NOT_FOUND)
-
-        mafft.add_volpiano(chant.volpiano)
-        texts.append(chant.full_text)
-
-    try:
-        mafft.run()
-    except RuntimeError as e:
-        _cleanup(tmp_url + 'tmp.txt')
-        return JsonResponse({'message': 'There was a problem with MAFFT'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    sequences = mafft.get_aligned_sequences()
-    syllables = [get_syllables(text) for text in texts]
-    chants = []
-    for i, sequence in enumerate(sequences):
-        try:
-            chants.append(align_syllables_and_volpiano(syllables[i], sequence))
-            success_sources.append(sources[i])
-            success_ids.append(ids[i])
-            success_volpianos.append(sequence)
-            success_urls.append(urls[i])
+            mafft.run()
         except RuntimeError as e:
-            error_sources.append(sources[i])
+            _cleanup(tmp_url + 'tmp.txt')
+            return JsonResponse({'message': 'There was a problem with MAFFT'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    _cleanup(tmp_url + 'tmp.txt')
+        # retrieve alignments
+        sequences = mafft.get_aligned_sequences()
+
+        # try aligning melody and text
+        syllables = [get_syllables(text) for text in texts]
+        chants = []
+        next_iteration_ids = []
+        for i, sequence in enumerate(sequences):
+            try:
+                chants.append(align_syllables_and_volpiano(syllables[i], sequence))
+                success_sources.append(sources[i])
+                success_ids.append(ids[i])
+                success_volpianos.append(sequence)
+                success_urls.append(urls[i])
+                # store chant id in case it is going to be aligned again
+                next_iteration_ids.append(ids[i])
+            except RuntimeError as e:
+                # found an error, the alignment will be run again
+                finished = False
+                error_sources.append(sources[i])
+
+        ids = next_iteration_ids
+        _cleanup(tmp_url + 'tmp.txt')
 
     response = JsonResponse({
         'chants': chants,
