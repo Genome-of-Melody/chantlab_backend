@@ -19,12 +19,12 @@ import os
 
 @api_view(['POST'])
 def chant_list(request):
-    data_sources = JSONParser().parse(request)
+    data_sources = json.loads(request.POST['dataSources'])
+    incipit = request.POST['incipit']
     chants = Chant.objects.filter(dataset_idx__in=data_sources)
 
-    title = request.GET.get('incipit', None)
-    if title is not None:
-        chants = chants.filter(incipit__icontains=title)
+    if incipit is not None:
+        chants = chants.filter(incipit__icontains=incipit)
     
     chants_serializer = ChantSerializer(chants, many=True)
     return JsonResponse(chants_serializer.data, safe=False)
