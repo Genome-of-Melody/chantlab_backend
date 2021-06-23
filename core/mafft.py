@@ -44,6 +44,18 @@ class Mafft():
             self._counter += 1
 
     
+    def add_text(self, text):
+        if not self._input:
+            raise RuntimeError("Input file must be defined"
+                               "before adding a chant")
+
+        text = text.replace(' ', '~')
+        with open(self._input, 'a') as file:
+            file.write("> sequence " + str(self._counter) + "\n")
+            file.write(text + "\n")
+            self._counter += 1
+
+    
     def get_aligned_sequences(self):
         if not self._process:
             raise RuntimeError("The process hasn't been run yet")

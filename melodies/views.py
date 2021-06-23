@@ -214,6 +214,55 @@ def chant_align(request):
         }})
 
     return response
+
+
+@api_view(['POST'])
+def chant_align_text(request):
+    tmp_url = ''
+    ids = JSONParser().parse(request)
+
+    # to make sure the file is empty
+    _cleanup(tmp_url + 'tmp.txt')
+
+    # setup mafft
+    mafft = Mafft()
+    mafft.set_input(tmp_url + 'tmp.txt')
+    mafft.add_option('--text')
+
+    sources = []
+    urls = []
+
+    for id in ids:
+        try:
+            chant = Chant.objects.get(pk=id)
+            siglum = chant.siglum if chant.siglum else ""
+            position = chant.position if chant.position else ""
+            folio = chant.folio if chant.folio else ""
+            source = siglum + ", " + folio + ", " + position
+            sources.append(source)
+            urls.append(chant.drupal_path)
+        except Chant.DoesNotExist:
+            return JsonResponse({'message': 'Chant with id ' + str(id) + ' does not exist'},
+                status=status.HTTP_404_NOT_FOUND)
+
+        mafft.add_text(chant.full_text)
+
+    try:
+        mafft.run()
+    except RuntimeError as e:
+        _cleanup(tmp_url + 'tmp.txt')
+        return JsonResponse({'message': 'There was a problem with MAFFT'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    sequences = mafft.get_aligned_sequences()
+    sequences = [sequence.replace('~', ' ') for sequence in sequences]
+    sequences = [[char for char in sequence] for sequence in sequences]
+    return JsonResponse({
+        'sources': sources,
+        'urls': urls,
+        'ids': ids,
+        'chants': sequences
+    })
           
 
 def _cleanup(file):
