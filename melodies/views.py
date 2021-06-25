@@ -9,7 +9,7 @@ from melodies.models import Chant
 from melodies.serializers import ChantSerializer
 from rest_framework.decorators import api_view
 
-from core.alignment import get_volpiano_syllable_alignment, combine_volpiano_and_text, align_syllables_and_volpiano
+from core.alignment import alignment_full, alignment_syllables
 from core.chant import get_JSON, get_stressed_syllables, get_syllables_from_text
 from core.mafft import Mafft
 import json
@@ -130,97 +130,12 @@ def chant_align(request):
     ids = json.loads(request.POST['idsToAlign'])
     mode = request.POST['mode']
     
-    tmp_url = ''
+    if mode == "full":
+        return JsonResponse(alignment_full(ids))
+    else:
+        return JsonResponse(alignment_syllables(ids))
 
-    # to make sure the file is empty
-    _cleanup(tmp_url + 'tmp.txt')
-
-    # setup mafft
-    mafft = Mafft()
-    mafft.set_input(tmp_url + 'tmp.txt')
-    mafft.add_option('--text')
-
-    # save errors
-    error_sources = []
-    finished = False
-
-    # iterate until there are no alignment errors
-    while not finished:
-        finished = True
-
-        sources = []
-        urls = []
-        texts = []
-        volpianos = []
-
-        success_sources = []
-        success_ids = []
-        success_volpianos = []
-        success_urls = []
-
-        # store chant data
-        for id in ids:
-            try:
-                chant = Chant.objects.get(pk=id)
-                siglum = chant.siglum if chant.siglum else ""
-                position = chant.position if chant.position else ""
-                folio = chant.folio if chant.folio else ""
-                source = siglum + ", " + folio + ", " + position
-                sources.append(source)
-                urls.append(chant.drupal_path)
-            except Chant.DoesNotExist:
-                return JsonResponse({'message': 'Chant with id ' + str(id) + ' does not exist'},
-                    status=status.HTTP_404_NOT_FOUND)
-
-            mafft.add_volpiano(chant.volpiano)
-            volpianos.append(chant.volpiano)
-            texts.append(chant.full_text)
-
-        # align the melodies
-        try:
-            mafft.run()
-        except RuntimeError as e:
-            _cleanup(tmp_url + 'tmp.txt')
-            return JsonResponse({'message': 'There was a problem with MAFFT'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        # retrieve alignments
-        sequences = mafft.get_aligned_sequences()
-
-        # try aligning melody and text
-        syllables = [get_syllables_from_text(text) for text in texts]
-        chants = []
-        next_iteration_ids = []
-        for i, sequence in enumerate(sequences):
-            try:
-                chants.append(align_syllables_and_volpiano(syllables[i], sequence))
-                success_sources.append(sources[i])
-                success_ids.append(ids[i])
-                success_volpianos.append(sequence)
-                success_urls.append(urls[i])
-                # store chant id in case it is going to be aligned again
-                next_iteration_ids.append(ids[i])
-            except RuntimeError as e:
-                # found an error, the alignment will be run again
-                finished = False
-                error_sources.append(sources[i])
-
-        ids = next_iteration_ids
-        _cleanup(tmp_url + 'tmp.txt')
-
-    response = JsonResponse({
-        'chants': chants,
-        'errors': error_sources, 
-        'success': {
-            'sources': success_sources,
-            'ids': success_ids,
-            'volpianos': success_volpianos,
-            'urls': success_urls
-        }})
-
-    return response
-
-
+    
 @api_view(['POST'])
 def chant_align_text(request):
     tmp_url = ''
