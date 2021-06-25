@@ -9,7 +9,8 @@ from melodies.models import Chant
 from melodies.serializers import ChantSerializer
 from rest_framework.decorators import api_view
 
-from core.chant import get_JSON, get_stressed_syllables, get_syllables, align_syllables_and_volpiano
+from core.alignment import get_volpiano_syllable_alignment, combine_volpiano_and_text, align_syllables_and_volpiano
+from core.chant import get_JSON, get_stressed_syllables, get_syllables_from_text
 from core.mafft import Mafft
 import json
 import os
@@ -111,7 +112,7 @@ def upload_data(request):
         df['dataset_idx'] = new_index
 
         # append data to database
-        df.to_sql('chant', con, if_exists='append', index=False)
+        df.to_sql('chant', con, if_exists='append', index=True, index_label="id")
 
         return JsonResponse({
             "name": request.POST['name'],
@@ -126,8 +127,10 @@ def get_sources(request):
 
 @api_view(['POST'])
 def chant_align(request):
+    ids = json.loads(request.POST['idsToAlign'])
+    mode = request.POST['mode']
+    
     tmp_url = ''
-    ids = JSONParser().parse(request)
 
     # to make sure the file is empty
     _cleanup(tmp_url + 'tmp.txt')
@@ -148,6 +151,7 @@ def chant_align(request):
         sources = []
         urls = []
         texts = []
+        volpianos = []
 
         success_sources = []
         success_ids = []
@@ -169,6 +173,7 @@ def chant_align(request):
                     status=status.HTTP_404_NOT_FOUND)
 
             mafft.add_volpiano(chant.volpiano)
+            volpianos.append(chant.volpiano)
             texts.append(chant.full_text)
 
         # align the melodies
@@ -183,7 +188,7 @@ def chant_align(request):
         sequences = mafft.get_aligned_sequences()
 
         # try aligning melody and text
-        syllables = [get_syllables(text) for text in texts]
+        syllables = [get_syllables_from_text(text) for text in texts]
         chants = []
         next_iteration_ids = []
         for i, sequence in enumerate(sequences):
