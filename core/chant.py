@@ -5,6 +5,11 @@ from cltk.phonology.lat.transcription import Transcriber
 import re
 
 def get_syllables_from_text(text):
+    """
+    Divides latin text into words and syllables.
+
+    @returns: list of words, where each word is a list of syllables
+    """
     text = re.sub('[^0-9a-zA-Z ]', ' ', text)
     words = text.split(' ')
     syllables = [syllabify(word) for word in words]
@@ -12,11 +17,12 @@ def get_syllables_from_text(text):
 
 
 def get_syllables_from_volpiano(volpiano):
-    # insert syllable and word boundary signs into volpiano
-    volpiano = volpiano.replace('---', '~')
-    volpiano = volpiano.replace('--', '|')
-    volpiano = volpiano.replace('-', '')
+    """
+    Divides a string of volpiano notation with separator signs
+    into words and syllables.
 
+    @returns: list of words, where each word is a list of syllables
+    """
     volpiano_words = volpiano.split('~')    # divides volpiano into words
     volpiano_words = volpiano_words[1:-1]   # discard 1st (clef) and last (bar) words
     volpiano_syllables = [volpiano_word.split('|') for volpiano_word in volpiano_words]
@@ -24,6 +30,20 @@ def get_syllables_from_volpiano(volpiano):
     return volpiano_syllables
 
 
+def insert_separator_chars(volpiano):
+    """
+    Replaces volpiano word boundaries ('---') by '~'
+    and syllable boundaries ('--') by '|'
+    """
+    volpiano = volpiano.replace('---', '~')
+    volpiano = volpiano.replace('--', '|')
+    volpiano = volpiano.replace('-', '')
+
+    return volpiano
+
+
+def check_volpiano_text_compatibility(volpiano, text):
+    return len(volpiano) == len(text)
 
 
 def get_stressed_syllables(text):

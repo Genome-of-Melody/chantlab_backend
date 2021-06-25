@@ -1,8 +1,9 @@
-from core.chant import get_syllables_from_volpiano
+from core.chant import get_syllables_from_volpiano, check_volpiano_text_compatibility, insert_separator_chars
 
 def get_volpiano_syllable_alignment(volpianos):
 
-    volpiano_words = [get_syllables_from_volpiano(volpiano) for volpiano in volpianos]
+    volpiano_separators = [insert_separator_chars(volpiano) for volpiano in volpianos]
+    volpiano_words = [get_syllables_from_volpiano(volpiano) for volpiano in volpiano_separators]
 
     # extend each word to the same number of syllables
     # and each syllables to the same number of characters
@@ -117,16 +118,9 @@ def combine_volpiano_and_text(volpiano, text):
 
 def align_syllables_and_volpiano(syllables, volpiano):
 
-    whole_words = volpiano.split('~')
-    # check if clef is present and remove first and last words
-    if not whole_words or whole_words[0] != '1':
-        raise RuntimeError("Incorrect volpiano format - no clef")
-    whole_words = whole_words[1:-1]
-
-    words = [word.split('|') for word in whole_words]
+    words = get_syllables_from_volpiano(volpiano)
     
-    # TODO fix this check later
-    if len(words) != len(syllables):
+    if not check_volpiano_text_compatibility(words, syllables):
         raise RuntimeError("Unequal text and volpiano length")
 
     return combine_volpiano_and_text(words, syllables)
