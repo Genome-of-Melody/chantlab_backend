@@ -2,6 +2,7 @@ from django.db import models
 
 
 class Chant(models.Model):
+    id = models.AutoField(primary_key=True)
     corpus_id = models.TextField(blank=True, null=True)
     incipit = models.TextField(blank=True, null=True)
     cantus_id = models.TextField(blank=True, null=True)
