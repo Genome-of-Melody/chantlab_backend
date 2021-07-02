@@ -221,6 +221,8 @@ def alignment_syllables(ids):
             error_sources.append(sources[i])
 
     aligned_volpianos = get_volpiano_syllable_alignment(volpianos_to_align)
+    volpiano_strings = [get_volpiano_string_from_syllables(volpiano)
+                            for volpiano in aligned_volpianos]
 
     chants = []
     for i in range(len(success_ids)):
@@ -232,7 +234,7 @@ def alignment_syllables(ids):
         'success': {
             'sources': success_sources,
             'ids': success_ids,
-            'volpianos': aligned_volpianos,
+            'volpianos': volpiano_strings,
             'urls': success_urls
         }
     }
@@ -248,6 +250,14 @@ def align_volpiano_and_text(volpiano, text):
         raise RuntimeError("Unequal text and volpiano length")
 
     return combine_volpiano_and_text(words, text)
+
+
+def get_volpiano_string_from_syllables(volpiano_syllables, contains_clef=False):
+    words = ['|'.join(word) for word in volpiano_syllables]
+    complete_volpiano = '~'.join(words)
+    if not contains_clef:
+        complete_volpiano = '1~' + complete_volpiano
+    return complete_volpiano
 
 
 def _cleanup(file):
