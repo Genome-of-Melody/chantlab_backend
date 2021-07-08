@@ -160,24 +160,27 @@ def alignment_full(ids):
 
         # retrieve alignments
         sequences = mafft.get_aligned_sequences()
+        sequence_order = mafft.get_sequence_order()
 
         # try aligning melody and text
         syllables = [get_syllables_from_text(text) for text in texts]
+        print(len(syllables))
+        print(syllables)
         chants = []
         next_iteration_ids = []
-        for i, sequence in enumerate(sequences):
+        for i, id in enumerate(sequence_order):
             try:
-                chants.append(align_volpiano_and_text(sequence, syllables[i]))
-                success_sources.append(sources[i])
-                success_ids.append(ids[i])
-                success_volpianos.append(sequence)
-                success_urls.append(urls[i])
+                chants.append(align_volpiano_and_text(sequences[i], syllables[id]))
+                success_sources.append(sources[id])
+                success_ids.append(ids[id])
+                success_volpianos.append(sequences[i])
+                success_urls.append(urls[id])
                 # store chant id in case it is going to be aligned again
-                next_iteration_ids.append(ids[i])
+                next_iteration_ids.append(ids[id])
             except RuntimeError as e:
                 # found an error, the alignment will be run again
                 finished = False
-                error_sources.append(sources[i])
+                error_sources.append(sources[id])
 
         ids = next_iteration_ids
         _cleanup(tmp_url + 'tmp.txt')
