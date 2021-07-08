@@ -97,7 +97,7 @@ def combine_volpiano_and_text(volpiano, text):
             if j != len(word) - 1:
                 current_word.append({
                     'type': 'syllable-space',
-                    'volpiano': ['-', '-'],
+                    'volpiano': ['-'],
                     'text': '-'
                 })
 
@@ -105,7 +105,7 @@ def combine_volpiano_and_text(volpiano, text):
         if i != len(volpiano) - 1:
             current_word.append({
                 'type': 'word-space',
-                'volpiano': ['-', '-', '-'],
+                'volpiano': ['3'],
                 'text': ''
             })
 
