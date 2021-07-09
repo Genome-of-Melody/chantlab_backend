@@ -79,7 +79,6 @@ def get_sources(request):
 @api_view(['POST'])
 def export_dataset(request):
     ids = json.loads(request.POST['idsToExport'])
-    print(ids)
     return export_to_csv(ids)
 
 
