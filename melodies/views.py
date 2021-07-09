@@ -13,6 +13,7 @@ from core.alignment import alignment_full, alignment_syllables
 from core.chant import get_JSON, get_stressed_syllables, get_syllables_from_text
 from core.mafft import Mafft
 from core.export import export_to_csv
+from core.upload import upload_csv
 import json
 import os
 import pandas as pd
@@ -30,51 +31,6 @@ def chant_list(request):
     
     chants_serializer = ChantSerializer(chants, many=True)
     return JsonResponse(chants_serializer.data, safe=False)
-
-
-    # if request.method == 'GET':
-    #     melodies = Chant.objects.all()
-        
-    #     title = request.GET.get('incipit', None)
-    #     if title is not None:
-    #         melodies = melodies.filter(incipit__icontains=title)
-        
-    #     melodies_serializer = ChantSerializer(melodies, many=True)
-    #     return JsonResponse(melodies_serializer.data, safe=False)
-    #     # 'safe=False' for objects serialization
-    # elif request.method == 'POST':
-    #     melody_data = JSONParser().parse(request)
-    #     melody_serializer = ChantSerializer(data=melody_data)
-    #     if melody_serializer.is_valid():
-    #         melody_serializer.save()
-    #         return JsonResponse(melody_serializer.data, status=status.HTTP_201_CREATED) 
-    #     return JsonResponse(melody_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    # elif request.method == 'DELETE':
-    #     count = Chant.objects.all().delete()
-    #     return JsonResponse({'message': '{} Melodies were deleted successfully!'.format(count[0])}, status=status.HTTP_204_NO_CONTENT)
- 
- 
-# @api_view(['GET'])
-# def chant_detail(request, pk):
-#     # find chant by pk (id)
-#     try: 
-#         melody = Chant.objects.get(pk=pk) 
-#     except Chant.DoesNotExist: 
-#         return JsonResponse({'message': 'The melody does not exist'}, status=status.HTTP_404_NOT_FOUND) 
-
-#     if request.method == 'GET': 
-#         melody_serializer = ChantSerializer(melody) 
-#         return JsonResponse(melody_serializer.data)
-#     elif request.method == 'PUT': 
-#         melody_data = JSONParser().parse(request) 
-#         melody_serializer = ChantSerializer(melody, data=melody_data) 
-#         if melody_serializer.is_valid(): 
-#             melody_serializer.save() 
-#             return JsonResponse(melody_serializer.data) 
-#         return JsonResponse(melody_serializer.errors, status=status.HTTP_400_BAD_REQUEST) 
-#     elif request.method == 'DELETE': 
-#         melody.delete() 
-#         return JsonResponse({'message': 'Chant was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['GET'])
@@ -98,25 +54,15 @@ def chant_display(request, pk):
 @api_view(['POST'])
 def upload_data(request):
     if request.FILES['file']:
-        # establish db connection
-        con = sqlite3.connect("chants.db")
+        file = request.FILES['file']
+        name = request.POST['name']
 
-        # read the provided file
-        df = pd.read_csv(request.FILES['file'])
+        df = pd.read_csv(file)
 
-        # change the database to fit the format
-        df.rename(columns={'id': 'corpus_id'}, inplace=True)
-        df.drop(['Unnamed: 0'], axis=1, inplace=True)
-        df['dataset_name'] = request.POST['name']
-        max_idx = Chant.objects.aggregate(Max('dataset_idx'))['dataset_idx__max']
-        new_index = max_idx + 1
-        df['dataset_idx'] = new_index
-
-        # append data to database
-        df.to_sql('chant', con, if_exists='append', index=True, index_label="id")
+        new_index = upload_csv(df, name)
 
         return JsonResponse({
-            "name": request.POST['name'],
+            "name": name,
             "index": new_index})
 
 
