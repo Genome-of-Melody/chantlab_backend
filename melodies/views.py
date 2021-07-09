@@ -12,6 +12,7 @@ from rest_framework.decorators import api_view
 from core.alignment import alignment_full, alignment_syllables
 from core.chant import get_JSON, get_stressed_syllables, get_syllables_from_text
 from core.mafft import Mafft
+from core.export import export_to_csv
 import json
 import os
 import pandas as pd
@@ -123,6 +124,13 @@ def upload_data(request):
 def get_sources(request):
     sources = Chant.objects.values_list('dataset_idx', 'dataset_name').distinct()
     return JsonResponse({"sources": list(sources)})
+
+
+@api_view(['POST'])
+def export_dataset(request):
+    ids = json.loads(request.POST['idsToExport'])
+    print(ids)
+    return export_to_csv(ids)
 
 
 @api_view(['POST'])
