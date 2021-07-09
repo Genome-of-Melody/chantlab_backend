@@ -4,7 +4,7 @@ from melodies.models import Chant
 
 import sqlite3
 
-def upload_csv(df, dataset_name):
+def upload_dataframe(df, dataset_name):
     # establish db connection
     con = sqlite3.connect("chants.db")
 

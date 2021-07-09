@@ -13,7 +13,7 @@ from core.alignment import alignment_full, alignment_syllables
 from core.chant import get_JSON, get_stressed_syllables, get_syllables_from_text
 from core.mafft import Mafft
 from core.export import export_to_csv
-from core.upload import upload_csv
+from core.upload import upload_dataframe
 import json
 import os
 import pandas as pd
@@ -63,11 +63,12 @@ def upload_data(request):
 
         df = pd.read_csv(file)
 
-        new_index = upload_csv(df, name)
+        new_index = upload_dataframe(df, name)
 
         return JsonResponse({
             "name": name,
-            "index": new_index})
+            "index": new_index
+        })
 
 
 @api_view(['GET'])
@@ -80,6 +81,27 @@ def get_sources(request):
 def export_dataset(request):
     ids = json.loads(request.POST['idsToExport'])
     return export_to_csv(ids)
+
+
+@api_view(['POST'])
+def create_dataset(request):
+    ids = json.loads(request.POST['idsToExport'])
+    dataset_name = request.POST['name']
+
+    chants = Chant.objects.filter(pk__in=ids)
+    chants_df = pd.DataFrame.from_records(
+        chants.values_list()
+    )
+    opts = chants.model._meta
+    field_names = [field.name for field in opts.fields]
+    chants_df.columns = field_names
+
+    new_index = upload_dataframe(chants_df, dataset_name)
+
+    return JsonResponse({
+        "name": dataset_name,
+        "index": new_index
+    })
 
 
 @api_view(['POST'])

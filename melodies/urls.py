@@ -8,5 +8,6 @@ urlpatterns = [
     url(r'^api/chants/align-text/$', views.chant_align_text),
     url(r'^api/chants/upload/$', views.upload_data),
     url(r'^api/chants/sources', views.get_sources),
-    url(r'^api/chants/export/$', views.export_dataset)
+    url(r'^api/chants/export/$', views.export_dataset),
+    url(r'^api/chants/create-dataset/$', views.create_dataset),
 ]
