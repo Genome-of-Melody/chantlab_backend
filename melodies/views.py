@@ -24,7 +24,11 @@ import os
 def chant_list(request):
     data_sources = json.loads(request.POST['dataSources'])
     incipit = request.POST['incipit']
-    chants = Chant.objects.filter(dataset_idx__in=data_sources)
+    genres = json.loads(request.POST['genres'])
+    offices = json.loads(request.POST['offices'])
+    chants = Chant.objects.filter(dataset_idx__in=data_sources)\
+                .filter(genre_id__in=genres)\
+                .filter(office_id__in=offices)
 
     if incipit is not None:
         chants = chants.filter(incipit__icontains=incipit)
