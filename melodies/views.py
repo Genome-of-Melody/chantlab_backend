@@ -9,7 +9,7 @@ from melodies.models import Chant
 from melodies.serializers import ChantSerializer
 from rest_framework.decorators import api_view
 
-from core.alignment import alignment_full, alignment_syllables
+from core.alignment import alignment_full, alignment_intervals, alignment_syllables
 from core.chant import get_JSON, get_stressed_syllables, get_syllables_from_text
 from core.mafft import Mafft
 from core.export import export_to_csv
@@ -111,6 +111,8 @@ def chant_align(request):
     
     if mode == "full":
         return JsonResponse(alignment_full(ids))
+    elif mode == "intervals":
+        return JsonResponse(alignment_intervals(ids))
     else:
         return JsonResponse(alignment_syllables(ids))
 

@@ -7,6 +7,7 @@ from melodies.models import Chant
 
 from core.chant import get_syllables_from_volpiano, get_syllables_from_text, check_volpiano_text_compatibility, insert_separator_chars
 from core.mafft import Mafft
+from core.intervals import Interval
 
 def get_volpiano_syllable_alignment(volpianos):
 
@@ -241,6 +242,88 @@ def alignment_syllables(ids):
             'urls': success_urls
         }
     }
+
+    return result
+
+
+def alignment_intervals(ids):
+    tmp_url = ''
+
+    # to make sure the file is empty
+    _cleanup(tmp_url + 'tmp.txt')
+
+    # setup mafft
+    mafft = Mafft()
+    mafft.set_input(tmp_url + 'tmp.txt')
+    mafft.add_option('--text')
+
+    # save errors
+    error_sources = []
+    finished = False
+
+    # iterate until there are no alignment errors
+    while not finished:
+        finished = True
+
+        sources, urls, texts, volpianos = _get_alignment_data_from_db(ids)
+
+        success_sources = []
+        success_ids = []
+        success_volpianos = []
+        success_urls = []
+
+        for volpiano in volpianos:
+            interval_repr = Interval.transform_volpiano_to_intervals(volpiano)
+            mafft.add_volpiano(interval_repr)
+
+        # align the melodies
+        try:
+            mafft.run()
+        except RuntimeError as e:
+            _cleanup(tmp_url + 'tmp.txt')
+            return JsonResponse({'message': 'There was a problem with MAFFT'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # retrieve alignments
+        sequences_intervals = mafft.get_aligned_sequences()
+        sequences_volpianos = [Interval.transform_intervals_to_volpiano(intervals)
+            for intervals in sequences_intervals
+        ]
+        sequence_order = mafft.get_sequence_order()
+
+
+        # try aligning melody and text
+        syllables = [get_syllables_from_text(text) for text in texts]
+        print(len(syllables))
+        print(syllables)
+        chants = []
+        next_iteration_ids = []
+        for i, id in enumerate(sequence_order):
+            try:
+                chants.append(align_volpiano_and_text(sequences_volpianos[i], syllables[id]))
+                success_sources.append(sources[id])
+                success_ids.append(ids[id])
+                success_volpianos.append(sequences_intervals[i])
+                success_urls.append(urls[id])
+                # store chant id in case it is going to be aligned again
+                next_iteration_ids.append(ids[id])
+            except RuntimeError as e:
+                # found an error, the alignment will be run again
+                finished = False
+                error_sources.append(sources[id])
+
+        ids = next_iteration_ids
+        _cleanup(tmp_url + 'tmp.txt')
+
+    result = {
+        'chants': chants,
+        'errors': error_sources, 
+        'success': {
+            'sources': success_sources,
+            'ids': success_ids,
+            'volpianos': success_volpianos,
+            'urls': success_urls
+        }}
 
     return result
 
