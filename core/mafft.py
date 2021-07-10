@@ -41,6 +41,7 @@ class Mafft():
                                "before adding a chant")
                                
         processed = _preprocess_volpiano(volpiano)
+        print(processed)
         with open(self._input, 'a') as file:
             file.write("> " + str(self._counter) + "\n")
             file.write(processed + "\n")

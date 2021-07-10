@@ -12,7 +12,7 @@ class Interval():
         "P": 15, "Q": 16, "R": 17, "S": 18
     }
 
-    interval_markers = "abcdefghijklmnopqrsABCDEFGHIJKLMNOPQRS"
+    interval_markers = "abcdefghjklmnopqrstABCDEFGHJKLMNOPQRST"
 
     volpiano_notes = "9abcdefghjklmnopqrs)ABCDEFGHJKLMNOPQRS"
 

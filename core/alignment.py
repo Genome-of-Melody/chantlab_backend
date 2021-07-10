@@ -165,8 +165,6 @@ def alignment_full(ids):
 
         # try aligning melody and text
         syllables = [get_syllables_from_text(text) for text in texts]
-        print(len(syllables))
-        print(syllables)
         chants = []
         next_iteration_ids = []
         for i, id in enumerate(sequence_order):
@@ -294,8 +292,6 @@ def alignment_intervals(ids):
 
         # try aligning melody and text
         syllables = [get_syllables_from_text(text) for text in texts]
-        print(len(syllables))
-        print(syllables)
         chants = []
         next_iteration_ids = []
         for i, id in enumerate(sequence_order):
