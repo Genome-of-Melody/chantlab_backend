@@ -1,4 +1,5 @@
 from django.db.models import Max
+from django.conf import settings
 
 from melodies.models import Chant
 
@@ -6,7 +7,8 @@ import sqlite3
 
 def upload_dataframe(df, dataset_name):
     # establish db connection
-    con = sqlite3.connect("chants.db")
+    db_name = settings.DATABASE_NAME
+    con = sqlite3.connect(db_name)
 
     # get current maximum id
     latest_id = Chant.objects.latest('id').id

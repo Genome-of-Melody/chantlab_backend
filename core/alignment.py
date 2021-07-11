@@ -9,6 +9,8 @@ from core.chant import get_syllables_from_volpiano, get_syllables_from_text, che
 from core.mafft import Mafft
 from core.intervals import Interval
 
+from django.conf import settings
+
 def get_volpiano_syllable_alignment(volpianos):
 
     # extend each word to the same number of syllables
@@ -123,14 +125,14 @@ def combine_volpiano_and_text(volpiano, text):
 
 
 def alignment_full(ids):
-    tmp_url = ''
+    temp_dir = settings.TEMP_DIR
 
     # to make sure the file is empty
-    _cleanup(tmp_url + 'tmp.txt')
+    _cleanup(temp_dir + 'tmp.txt')
 
     # setup mafft
     mafft = Mafft()
-    mafft.set_input(tmp_url + 'tmp.txt')
+    mafft.set_input(temp_dir + 'tmp.txt')
     mafft.add_option('--text')
 
     # save errors
@@ -155,7 +157,7 @@ def alignment_full(ids):
         try:
             mafft.run()
         except RuntimeError as e:
-            _cleanup(tmp_url + 'tmp.txt')
+            _cleanup(temp_dir + 'tmp.txt')
             return JsonResponse({'message': 'There was a problem with MAFFT'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -182,7 +184,7 @@ def alignment_full(ids):
                 error_sources.append(sources[id])
 
         ids = next_iteration_ids
-        _cleanup(tmp_url + 'tmp.txt')
+        _cleanup(temp_dir + 'tmp.txt')
 
     result = {
         'chants': chants,
@@ -245,14 +247,14 @@ def alignment_syllables(ids):
 
 
 def alignment_intervals(ids):
-    tmp_url = ''
+    temp_dir = settings.TEMP_DIR
 
     # to make sure the file is empty
-    _cleanup(tmp_url + 'tmp.txt')
+    _cleanup(temp_dir + 'tmp.txt')
 
     # setup mafft
     mafft = Mafft()
-    mafft.set_input(tmp_url + 'tmp.txt')
+    mafft.set_input(temp_dir + 'tmp.txt')
     mafft.add_option('--text')
 
     # save errors
@@ -278,7 +280,7 @@ def alignment_intervals(ids):
         try:
             mafft.run()
         except RuntimeError as e:
-            _cleanup(tmp_url + 'tmp.txt')
+            _cleanup(temp_dir + 'tmp.txt')
             return JsonResponse({'message': 'There was a problem with MAFFT'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -309,7 +311,7 @@ def alignment_intervals(ids):
                 error_sources.append(sources[id])
 
         ids = next_iteration_ids
-        _cleanup(tmp_url + 'tmp.txt')
+        _cleanup(temp_dir + 'tmp.txt')
 
     result = {
         'chants': chants,

@@ -80,10 +80,12 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
+DATABASE_NAME = 'chants.db'
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'chants.db'),
+        'NAME': os.path.join(BASE_DIR, DATABASE_NAME),
         'USER': 'root',
         'PASSWORD': '123456',
         'HOST': '127.0.0.1',
@@ -136,4 +138,5 @@ CORS_ORIGIN_WHITELIST = (
     'http://localhost:4200'
 )
 
-SESSION_COOKIE_SAMESITE = None
+# Directory with temporary files
+TEMP_DIR = ''
