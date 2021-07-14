@@ -23,7 +23,7 @@ def get_volpiano_syllable_alignment(volpianos):
         syllable_counts = []
         # for each pair, add the number of syllables in the volpiano
         for i in range(len(volpianos)):
-            if len(volpianos[i]) < word - 1:
+            if len(volpianos[i]) < word + 1:
                 syllable_counts.append(0)
                 continue
             syllable_counts.append(len(volpianos[i][word]))
@@ -38,7 +38,7 @@ def get_volpiano_syllable_alignment(volpianos):
             # find the longest syllable in the current position
             char_counts = []
             for i in range(len(volpianos)):
-                if len(volpianos[i]) < word - 1 or len(volpianos[i][word]) < syllable - 1:
+                if len(volpianos[i]) < word + 1 or len(volpianos[i][word]) < syllable + 1:
                     char_counts.append(0)
                     continue
                 char_counts.append(len(volpianos[i][word][syllable]))
@@ -58,6 +58,17 @@ def get_volpiano_syllable_alignment(volpianos):
     return extended_volpianos
 
 
+def extend_text_to_volpiano(text, volpiano):
+    if len(text) < len(volpiano):
+        text.extend([[] for _ in range(len(volpiano) - len(text))])
+
+    for word in range(len(volpiano)):
+        if len(text[word]) < len(volpiano[word]):
+            text[word].extend([[] for _ in range(len(volpiano[word]) - len(text[word]))])
+
+    return text
+
+
 def combine_volpiano_and_text(volpiano, text):
     # start sequence with a clef
     combined = [[{
@@ -66,7 +77,7 @@ def combine_volpiano_and_text(volpiano, text):
         'text': ''
     }, {
         'type': 'word-space',
-        'volpiano': ['-', '-', '-'],
+        'volpiano': ['-'],
         'text': ''
     }]]
 
@@ -230,7 +241,8 @@ def alignment_syllables(ids):
 
     chants = []
     for i in range(len(success_ids)):
-        chants.append(combine_volpiano_and_text(aligned_volpianos[i], texts_to_align[i]))
+        text = extend_text_to_volpiano(texts_to_align[i], aligned_volpianos[i])
+        chants.append(combine_volpiano_and_text(aligned_volpianos[i], text))
 
     result = {
         'chants': chants,
