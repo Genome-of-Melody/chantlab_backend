@@ -109,7 +109,6 @@ class Mafft():
 
 
     def run(self):
-        print("running")
         command = ""
         command += self._prefix + " " if self._prefix else ""
         command += "mafft "

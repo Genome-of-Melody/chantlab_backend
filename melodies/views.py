@@ -9,11 +9,10 @@ from melodies.models import Chant
 from melodies.serializers import ChantSerializer
 from rest_framework.decorators import api_view
 
-from core.alignment import alignment_full, alignment_intervals, alignment_syllables
-from core.chant import get_JSON, get_stressed_syllables, get_syllables_from_text
-from core.mafft import Mafft
-from core.export import export_to_csv
-from core.upload import upload_dataframe
+from core.aligner import Aligner
+from core.chant_processor import ChantProcessor
+from core.exporter import Exporter
+from core.uploader import Uploader
 import json
 import os
 import pandas as pd
@@ -45,10 +44,10 @@ def chant_display(request, pk):
         return JsonResponse({'message': 'The chant does not exist'}, status=status.HTTP_404_NOT_FOUND)   
 
     try:
-        chant_json = get_JSON(chant.full_text, chant.volpiano)
+        chant_json = ChantProcessor.get_JSON(chant.full_text, chant.volpiano)
     except:
         chant_json = None
-    stresses = get_stressed_syllables(chant.full_text)
+    stresses = ChantProcessor.get_stressed_syllables(chant.full_text)
     return JsonResponse({
         'db_source': ChantSerializer(chant).data,
         'json_volpiano': json.loads(chant_json) if chant_json else None, 
@@ -63,7 +62,7 @@ def upload_data(request):
 
         df = pd.read_csv(file)
 
-        new_index = upload_dataframe(df, name)
+        new_index = Uploader.upload_dataframe(df, name)
 
         return JsonResponse({
             "name": name,
@@ -80,7 +79,7 @@ def get_sources(request):
 @api_view(['POST'])
 def export_dataset(request):
     ids = json.loads(request.POST['idsToExport'])
-    return export_to_csv(ids)
+    return Exporter.export_to_csv(ids)
 
 
 @api_view(['POST'])
@@ -96,7 +95,7 @@ def create_dataset(request):
     field_names = [field.name for field in opts.fields]
     chants_df.columns = field_names
 
-    new_index = upload_dataframe(chants_df, dataset_name)
+    new_index = Uploader.upload_dataframe(chants_df, dataset_name)
 
     return JsonResponse({
         "name": dataset_name,
@@ -110,62 +109,14 @@ def chant_align(request):
     mode = request.POST['mode']
     
     if mode == "full":
-        return JsonResponse(alignment_full(ids))
+        return JsonResponse(Aligner.alignment_pitches(ids))
     elif mode == "intervals":
-        return JsonResponse(alignment_intervals(ids))
+        return JsonResponse(Aligner.alignment_intervals(ids))
     else:
-        return JsonResponse(alignment_syllables(ids))
+        return JsonResponse(Aligner.alignment_syllables(ids))
 
     
 @api_view(['POST'])
 def chant_align_text(request):
-    tmp_url = ''
-    ids = JSONParser().parse(request)
-
-    # to make sure the file is empty
-    _cleanup(tmp_url + 'tmp.txt')
-
-    # setup mafft
-    mafft = Mafft()
-    mafft.set_input(tmp_url + 'tmp.txt')
-    mafft.add_option('--text')
-
-    sources = []
-    urls = []
-
-    for id in ids:
-        try:
-            chant = Chant.objects.get(pk=id)
-            siglum = chant.siglum if chant.siglum else ""
-            position = chant.position if chant.position else ""
-            folio = chant.folio if chant.folio else ""
-            source = siglum + ", " + folio + ", " + position
-            sources.append(source)
-            urls.append(chant.drupal_path)
-        except Chant.DoesNotExist:
-            return JsonResponse({'message': 'Chant with id ' + str(id) + ' does not exist'},
-                status=status.HTTP_404_NOT_FOUND)
-
-        mafft.add_text(chant.full_text)
-
-    try:
-        mafft.run()
-    except RuntimeError as e:
-        _cleanup(tmp_url + 'tmp.txt')
-        return JsonResponse({'message': 'There was a problem with MAFFT'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    sequences = mafft.get_aligned_sequences()
-    sequences = [sequence.replace('~', ' ') for sequence in sequences]
-    sequences = [[char for char in sequence] for sequence in sequences]
-    return JsonResponse({
-        'sources': sources,
-        'urls': urls,
-        'ids': ids,
-        'chants': sequences
-    })
-          
-
-def _cleanup(file):
-    if os.path.exists(file):
-        os.remove(file)
+    
+    return JsonResponse({})
