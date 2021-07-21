@@ -4,9 +4,15 @@ from django.http import HttpResponse
 import csv
 
 class Exporter():
+    '''
+    The Exporter class provides a method to download a set of chants
+    '''
 
     @classmethod
     def export_to_csv(cls, ids):
+        '''
+        Create a CSV file of chants
+        '''
 
         chants = Chant.objects.filter(pk__in=ids)
         opts = chants.model._meta

@@ -6,9 +6,15 @@ from melodies.models import Chant
 import sqlite3
 
 class Uploader():
+    '''
+    The Uploader class contains a method for uploading data
+    '''
 
     @classmethod
     def upload_dataframe(cls, df, dataset_name):
+        '''
+        Upload a dataframe to database
+        '''
         # establish db connection
         db_name = settings.DATABASE_NAME
         con = sqlite3.connect(db_name)

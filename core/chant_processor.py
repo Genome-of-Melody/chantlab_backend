@@ -4,6 +4,9 @@ from cltk.phonology.lat.transcription import Transcriber
 import re
 
 class ChantProcessor():
+    '''
+    The ChantProcessor class provides method to process chants' texts and melodies
+    '''
 
     @classmethod
     def get_syllables_from_text(cls, text):
@@ -48,11 +51,17 @@ class ChantProcessor():
 
     @classmethod
     def check_volpiano_text_compatibility(cls, volpiano, text):
+        '''
+        Check whether melody and text can be combined
+        '''
         return len(volpiano) == len(text)
 
 
     @classmethod
     def get_stressed_syllables(cls, text):
+        '''
+        Compute the stressed syllables of Latin text
+        '''
         text = re.sub('[^0-9a-zA-Z ]', ' ', text)       # remove non-alphanumeric characters
         try:
             transcriber = Transcriber("Classical", "Allen")
@@ -67,6 +76,9 @@ class ChantProcessor():
 
     @classmethod
     def get_JSON(cls, text, melody):
+        '''
+        Return an easily renderable representation of a chant
+        '''
         converter = chant21.cantus.ConverterCantusVolpiano(strict=True)
         converter.parseData(melody + '/' + text)
         chant = converter.stream

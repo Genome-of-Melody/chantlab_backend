@@ -15,7 +15,6 @@ from core.exporter import Exporter
 from core.uploader import Uploader
 import json
 import pandas as pd
-import os
 
 @api_view(['POST'])
 def chant_list(request):

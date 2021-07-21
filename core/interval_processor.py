@@ -1,4 +1,8 @@
 class IntervalProcessor():
+    '''
+    The IntervalProcessor class provides methods to work
+    with interval representations of melodies
+    '''
 
     note_values = {
         "9": 0, "a": 1, "b": 2, "c": 3, "d": 4,
@@ -15,6 +19,60 @@ class IntervalProcessor():
     interval_markers = "abcdefghjklmnopqrstABCDEFGHJKLMNOPQRST"
 
     volpiano_notes = "9abcdefghjklmnopqrs)ABCDEFGHJKLMNOPQRS"
+
+
+    @classmethod
+    def transform_volpiano_to_intervals(cls, volpiano):
+        '''
+        Calculate the interval representation of a volpiano-encoded melody
+        '''
+        seen_first_note = False
+        previous_note = None
+        interval_repr = ""
+
+        for c in volpiano:
+            if c in cls.volpiano_notes:
+                if seen_first_note:
+                    (interval_value, lower_first) =\
+                        cls._calculate_interval(previous_note, c)
+                    marker = cls._interval_to_marker(interval_value, lower_first)
+
+                    interval_repr += marker
+                    previous_note = c
+                else:
+                    seen_first_note = True
+                    cls._first_note = c
+                    previous_note = c
+                    interval_repr += c
+            else:
+                interval_repr += c
+
+        return interval_repr
+
+
+    @classmethod
+    def transform_intervals_to_volpiano(cls, interval_repr):
+        '''
+        Calculate the volpiano-encoding of an interval-represented melody
+        '''
+        seen_first_note = False
+        previous_note = None
+        volpiano = ""
+
+        for c in interval_repr:
+            if c in cls.interval_markers and seen_first_note:
+                interval_value = cls._get_interval_from_marker(c)
+                note = cls._get_next_note_in_interval(previous_note, interval_value)
+                previous_note = note
+                volpiano += note
+            elif c in cls.volpiano_notes and not seen_first_note:
+                seen_first_note = True
+                previous_note = c
+                volpiano += c
+            else:
+                volpiano += c
+
+        return volpiano
 
 
     @classmethod
@@ -62,52 +120,4 @@ class IntervalProcessor():
         if is_liquescent:
             next_note = next_note.upper()
         return next_note
-
-
-    @classmethod
-    def transform_volpiano_to_intervals(cls, volpiano):
-        seen_first_note = False
-        previous_note = None
-        interval_repr = ""
-
-        for c in volpiano:
-            if c in cls.volpiano_notes:
-                if seen_first_note:
-                    (interval_value, lower_first) =\
-                        cls._calculate_interval(previous_note, c)
-                    marker = cls._interval_to_marker(interval_value, lower_first)
-
-                    interval_repr += marker
-                    previous_note = c
-                else:
-                    seen_first_note = True
-                    cls._first_note = c
-                    previous_note = c
-                    interval_repr += c
-            else:
-                interval_repr += c
-
-        return interval_repr
-
-
-    @classmethod
-    def transform_intervals_to_volpiano(cls, interval_repr):
-        seen_first_note = False
-        previous_note = None
-        volpiano = ""
-
-        for c in interval_repr:
-            if c in cls.interval_markers and seen_first_note:
-                interval_value = cls._get_interval_from_marker(c)
-                note = cls._get_next_note_in_interval(previous_note, interval_value)
-                previous_note = note
-                volpiano += note
-            elif c in cls.volpiano_notes and not seen_first_note:
-                seen_first_note = True
-                previous_note = c
-                volpiano += c
-            else:
-                volpiano += c
-
-        return volpiano
 

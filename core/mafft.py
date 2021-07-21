@@ -2,6 +2,9 @@ import subprocess
 import sys
 
 class Mafft():
+    '''
+    The Mafft class is the interface for working with the MAFFT software
+    '''
 
     def __init__(self):
         self._input = None
