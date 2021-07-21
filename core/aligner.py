@@ -74,7 +74,7 @@ class Aligner():
 
 
     @classmethod
-    def _combine_volpiano_and_text(cls, volpiano, text):
+    def _combine_volpiano_and_text(cls, volpiano, text_syllabified):
         # start sequence with a clef
         combined = [[{
             'type': 'clef',
@@ -89,15 +89,15 @@ class Aligner():
         for i, word in enumerate(volpiano):
             # if the number of text syllables is higher than the number
             # of volpiano syllables, truncate the last ones into one
-            if len(word) < len(text[i]):
-                new_syllables = text[i][:len(word) - 1]                    # n-1 syllables
-                new_syllables.append(''.join(text[i][len(word) - 1:]))     # the rest combined into one
-                text[i] = new_syllables
+            if len(word) < len(text_syllabified[i]):
+                new_syllables = text_syllabified[i][:len(word) - 1]                    # n-1 syllables
+                new_syllables.append(''.join(text_syllabified[i][len(word) - 1:]))     # the rest combined into one
+                text_syllabified[i] = new_syllables
 
             # if the number of volpiano syllables is higher than the number
             # of text syllables, add empty syllables to text
-            if len(text[i]) < len(word):
-                text[i].extend([''] * (len(word) - len(text[i])))
+            if len(text_syllabified[i]) < len(word):
+                text_syllabified[i].extend([''] * (len(word) - len(text_syllabified[i])))
 
             current_word = []
             # now process each syllable
@@ -110,7 +110,7 @@ class Aligner():
                 current_word.append({
                     'type': 'syllable',
                     'volpiano': syllable_volpiano,
-                    'text': text[i][j]
+                    'text': text_syllabified[i][j]
                 })
 
                 if j != len(word) - 1:
@@ -138,82 +138,6 @@ class Aligner():
         }])
 
         return combined
-
-
-    @classmethod
-    def alignment_pitches(cls, ids):
-        temp_dir = settings.TEMP_DIR
-
-        # to make sure the file is empty
-        cls._cleanup(temp_dir + 'tmp.txt')
-
-        # setup mafft
-        mafft = Mafft()
-        mafft.set_input(temp_dir + 'tmp.txt')
-        mafft.add_option('--text')
-
-        # save errors
-        error_sources = []
-        finished = False
-
-        # iterate until there are no alignment errors
-        while not finished:
-            finished = True
-
-            sources, urls, texts, volpianos = cls._get_alignment_data_from_db(ids)
-
-            success_sources = []
-            success_ids = []
-            success_volpianos = []
-            success_urls = []
-
-            for volpiano in volpianos:
-                mafft.add_volpiano(volpiano)
-
-            # align the melodies
-            try:
-                mafft.run()
-            except RuntimeError as e:
-                cls._cleanup(temp_dir + 'tmp.txt')
-                return JsonResponse({'message': 'There was a problem with MAFFT'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-            # retrieve alignments
-            sequences = mafft.get_aligned_sequences()
-            sequence_order = mafft.get_sequence_order()
-
-            # try aligning melody and text
-            syllables = [ChantProcessor.get_syllables_from_text(text) for text in texts]
-            chants = []
-            next_iteration_ids = []
-            for i, id in enumerate(sequence_order):
-                try:
-                    chants.append(cls._align_volpiano_and_text(sequences[i], syllables[id]))
-                    success_sources.append(sources[id])
-                    success_ids.append(ids[id])
-                    success_volpianos.append(sequences[i])
-                    success_urls.append(urls[id])
-                    # store chant id in case it is going to be aligned again
-                    next_iteration_ids.append(ids[id])
-                except RuntimeError as e:
-                    # found an error, the alignment will be run again
-                    finished = False
-                    error_sources.append(sources[id])
-
-            ids = next_iteration_ids
-            cls._cleanup(temp_dir + 'tmp.txt')
-
-        result = {
-            'chants': chants,
-            'errors': error_sources, 
-            'success': {
-                'sources': success_sources,
-                'ids': success_ids,
-                'volpianos': success_volpianos,
-                'urls': success_urls
-            }}
-
-        return result
 
 
     @classmethod
@@ -266,6 +190,82 @@ class Aligner():
 
 
     @classmethod
+    def alignment_pitches(cls, ids):
+        temp_dir = settings.TEMP_DIR
+
+        # to make sure the file is empty
+        cls._cleanup(temp_dir + 'tmp.txt')
+
+        # setup mafft
+        mafft = Mafft()
+        mafft.set_input(temp_dir + 'tmp.txt')
+        mafft.add_option('--text')
+
+        # save errors
+        error_sources = []
+        finished = False
+
+        # iterate until there are no alignment errors
+        while not finished:
+            finished = True
+
+            sources, urls, texts, volpianos = cls._get_alignment_data_from_db(ids)
+
+            success_sources = []
+            success_ids = []
+            success_volpianos = []
+            success_urls = []
+
+            for volpiano in volpianos:
+                mafft.add_volpiano(volpiano)
+
+            # align the melodies
+            try:
+                mafft.run()
+            except RuntimeError as e:
+                cls._cleanup(temp_dir + 'tmp.txt')
+                return JsonResponse({'message': 'There was a problem with MAFFT'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            # retrieve alignments
+            aligned_melodies = mafft.get_aligned_sequences()
+            melody_order = mafft.get_sequence_order()
+
+            # try aligning melody and text
+            text_syllabified = [ChantProcessor.get_syllables_from_text(text) for text in texts]
+            chants = []
+            next_iteration_ids = []
+            for i, id in enumerate(melody_order):
+                try:
+                    chants.append(cls._get_volpiano_text_JSON(aligned_melodies[i], text_syllabified[id]))
+                    success_sources.append(sources[id])
+                    success_ids.append(ids[id])
+                    success_volpianos.append(aligned_melodies[i])
+                    success_urls.append(urls[id])
+                    # store chant id in case it is going to be aligned again
+                    next_iteration_ids.append(ids[id])
+                except RuntimeError as e:
+                    # found an error, the alignment will be run again
+                    finished = False
+                    error_sources.append(sources[id])
+
+            ids = next_iteration_ids
+            cls._cleanup(temp_dir + 'tmp.txt')
+
+        result = {
+            'chants': chants,
+            'errors': error_sources, 
+            'success': {
+                'sources': success_sources,
+                'ids': success_ids,
+                'volpianos': success_volpianos,
+                'urls': success_urls
+            }}
+
+        return result
+
+
+    @classmethod
     def alignment_intervals(cls, ids):
         temp_dir = settings.TEMP_DIR
 
@@ -305,23 +305,23 @@ class Aligner():
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             # retrieve alignments
-            sequences_intervals = mafft.get_aligned_sequences()
-            sequences_volpianos = [IntervalProcessor.transform_intervals_to_volpiano(intervals)
-                for intervals in sequences_intervals
+            aligned_melodies_intervals = mafft.get_aligned_sequences()
+            aligned_melodies_volpianos = [IntervalProcessor.transform_intervals_to_volpiano(intervals)
+                for intervals in aligned_melodies_intervals
             ]
             sequence_order = mafft.get_sequence_order()
 
 
             # try aligning melody and text
-            syllables = [ChantProcessor.get_syllables_from_text(text) for text in texts]
+            text_syllabified = [ChantProcessor.get_syllables_from_text(text) for text in texts]
             chants = []
             next_iteration_ids = []
             for i, id in enumerate(sequence_order):
                 try:
-                    chants.append(cls._align_volpiano_and_text(sequences_volpianos[i], syllables[id]))
+                    chants.append(cls._get_volpiano_text_JSON(aligned_melodies_volpianos[i], text_syllabified[id]))
                     success_sources.append(sources[id])
                     success_ids.append(ids[id])
-                    success_volpianos.append(sequences_intervals[i])
+                    success_volpianos.append(aligned_melodies_intervals[i])
                     success_urls.append(urls[id])
                     # store chant id in case it is going to be aligned again
                     next_iteration_ids.append(ids[id])
@@ -347,7 +347,7 @@ class Aligner():
 
 
     @classmethod
-    def _align_volpiano_and_text(cls, volpiano, text):
+    def _get_volpiano_text_JSON(cls, volpiano, text):
 
         words = ChantProcessor.get_syllables_from_volpiano(volpiano)
         

@@ -7,7 +7,6 @@ class Mafft():
         self._input = None
         self._output = None
         self._options = ['--quiet', '--reorder']
-        # this should eventually be removed
         self._prefix = "wsl" if sys.platform.startswith("win") else ""
         self._counter = 0
         self._process = None
@@ -17,7 +16,6 @@ class Mafft():
 
 
     def set_input(self, file):
-        # add check if the file exists?
         self._input = file
 
     
@@ -41,7 +39,6 @@ class Mafft():
                                "before adding a chant")
                                
         processed = _preprocess_volpiano(volpiano)
-        print(processed)
         with open(self._input, 'a') as file:
             file.write("> " + str(self._counter) + "\n")
             file.write(processed + "\n")
@@ -68,7 +65,8 @@ class Mafft():
             raise RuntimeError(self._process.stderr)
         
         if not self._process.stdout:
-            raise RuntimeError("No aligned sequences found")
+            self._aligned_sequences = []
+            self._sequence_idxs = []
 
         stdout = self._process.stdout.decode('utf-8')
         sequences = []
@@ -114,8 +112,6 @@ class Mafft():
         command += "mafft "
         command += " ".join(self._options) + " "
         command += self._input + " " if self._input else ""
-        # the --out option doesn't seem to be working?
-        # command += "--out " + self._output if self._output else ""
         process = subprocess.run(command, capture_output=True, shell=True)
         if process.stderr:
             print(process.stderr)

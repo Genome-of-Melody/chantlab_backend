@@ -14,9 +14,7 @@ from core.chant_processor import ChantProcessor
 from core.exporter import Exporter
 from core.uploader import Uploader
 import json
-import os
 import pandas as pd
-import sqlite3
 import os
 
 @api_view(['POST'])

@@ -42,9 +42,7 @@ class IntervalProcessor():
 
     @classmethod
     def _get_interval_from_marker(cls, interval_marker):
-        interval_is_negative = False
-        if interval_marker.isupper():
-            interval_is_negative = True
+        interval_is_negative = interval_marker.isupper()
         
         interval_marker_lower = interval_marker.lower()
         interval_value = cls.interval_markers.index(interval_marker_lower)
@@ -56,8 +54,14 @@ class IntervalProcessor():
 
     @classmethod
     def _get_next_note_in_interval(cls, start_note, interval):
+        is_liquescent = start_note.isupper()
+        start_note = start_note.lower()
+
         start_note_index = cls.volpiano_notes.index(start_note)
-        return cls.volpiano_notes[start_note_index + interval]
+        next_note = cls.volpiano_notes[start_note_index + interval]
+        if is_liquescent:
+            next_note = next_note.upper()
+        return next_note
 
 
     @classmethod
