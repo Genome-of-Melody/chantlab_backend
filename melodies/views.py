@@ -16,6 +16,7 @@ from core.uploader import Uploader
 import json
 import pandas as pd
 
+
 @api_view(['POST'])
 def chant_list(request):
     data_sources = json.loads(request.POST['dataSources'])
@@ -66,7 +67,6 @@ def upload_data(request):
             "index": new_index
         })
 
-
 @api_view(['GET'])
 def get_sources(request):
     sources = Chant.objects.values_list('dataset_idx', 'dataset_name').distinct()
@@ -81,6 +81,8 @@ def export_dataset(request):
 
 @api_view(['POST'])
 def create_dataset(request):
+    print('Creating dataset with name: {}'.format(request.POST['name']))
+
     ids = json.loads(request.POST['idsToExport'])
     dataset_name = request.POST['name']
 
@@ -98,6 +100,15 @@ def create_dataset(request):
         "name": dataset_name,
         "index": new_index
     })
+
+
+@api_view(['POST'])
+def delete_dataset(request):
+    dataset_name = request.POST['name']
+
+    Uploader.delete_dataset(dataset_name)
+
+    return JsonResponse({})
 
 
 @api_view(['POST'])

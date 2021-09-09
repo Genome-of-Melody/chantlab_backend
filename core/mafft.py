@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 
@@ -9,23 +10,29 @@ class Mafft():
     def __init__(self):
         self._input = None
         self._output = None
-        self._options = ['--quiet', '--reorder']
+        self._output_guide_tree_file = None
+
+        self._options = ['--quiet', '--reorder', '--treeout']
         self._prefix = "wsl" if sys.platform.startswith("win") else ""
         self._counter = 0
         self._process = None
 
+
         self._aligned_sequences = None
         self._sequence_idxs = None
+        self._guide_tree = None
 
 
     def set_input(self, file):
         self._input = file
+        # MAFFT outputs the guide tree to a file called e.g. 'testinput.txt.tree'
+        self._output_guide_tree_file = self._input + '.tree'
 
     
     def set_output(self, file):
         self._output = file
 
-    
+
     def add_option(self, flag, value=None):
         self._options.append(flag)
         if value:
@@ -94,7 +101,36 @@ class Mafft():
         self._aligned_sequences = sequences
         self._sequence_idxs = sequence_idxs
 
-    
+
+    def load_guide_tree(self):
+        if not self._output_guide_tree_file:
+            raise RuntimeError('Cannot load guide tree: no guide tree file defined.')
+        if not os.path.isfile(self._output_guide_tree_file):
+            raise RuntimeError('Cannot load guide tree: guide tree file {} not found.'
+                               ''.format(self._output_guide_tree_file))
+
+        with open(self._output_guide_tree_file, 'r') as gt:
+            gt_text = ''.join(gt.readline())
+
+        guide_tree = self.parse_guide_tree(gt_text)
+        self._guide_tree = guide_tree
+
+
+    def parse_guide_tree(self, gt_text):
+        '''Guide tree data structure:
+
+        Binary tree, every node also remembers its distace to its parent.
+        '''
+        # Not implemented yet.
+        return gt_text
+
+
+    def get_guide_tree(self):
+        if not self._guide_tree:
+            self.load_guide_tree()
+        return self._guide_tree
+
+
     def get_aligned_sequences(self):
         if not self._aligned_sequences:
             self.decode_process()
@@ -116,6 +152,7 @@ class Mafft():
         command += " ".join(self._options) + " "
         command += self._input + " " if self._input else ""
         process = subprocess.run(command, capture_output=True, shell=True)
+
         if process.stderr:
             print(process.stderr)
         elif process.stdout:
@@ -124,6 +161,7 @@ class Mafft():
                     out.write(process.stdout)
 
         self._process = process
+
         # reset run-specific values
         self._counter = 0
         self._aligned_sequences = None

@@ -9,4 +9,5 @@ urlpatterns = [
     url(r'^api/chants/sources', views.get_sources),
     url(r'^api/chants/export/$', views.export_dataset),
     url(r'^api/chants/create-dataset/$', views.create_dataset),
+    url(r'^api/chants/delete-dataset/$', views.delete_dataset)
 ]
