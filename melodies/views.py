@@ -23,9 +23,15 @@ def chant_list(request):
     incipit = request.POST['incipit']
     genres = json.loads(request.POST['genres'])
     offices = json.loads(request.POST['offices'])
+    fontes = json.loads(request.POST['fontes'])
+
+    print('chant_list request fontes: {}'.format(fontes))
+
     chants = Chant.objects.filter(dataset_idx__in=data_sources)\
                 .filter(genre_id__in=genres)\
-                .filter(office_id__in=offices)
+                .filter(office_id__in=offices)\
+                .filter(siglum__in=fontes)\
+                .order_by('incipit')
 
     if incipit is not None:
         chants = chants.filter(incipit__icontains=incipit)
@@ -67,10 +73,21 @@ def upload_data(request):
             "index": new_index
         })
 
+
 @api_view(['GET'])
-def get_sources(request):
-    sources = Chant.objects.values_list('dataset_idx', 'dataset_name').distinct()
-    return JsonResponse({"sources": list(sources)})
+def get_data_sources(request):
+    data_sources = Chant.objects.values_list('dataset_idx', 'dataset_name').distinct()
+    return JsonResponse({"dataSources": list(data_sources)})
+
+
+@api_view(['POST'])
+def get_fontes(request):
+    data_sources = json.loads(request.POST['dataSources'])
+
+    # This needs to be re-done so that only fontes pertaining to the current
+    # dataset selection are displayed.
+    fontes = Chant.objects.filter(dataset_idx__in=data_sources).values_list('siglum').distinct()
+    return JsonResponse({"fontes": sorted(list(fontes))})
 
 
 @api_view(['POST'])
