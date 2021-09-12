@@ -25,8 +25,6 @@ def chant_list(request):
     offices = json.loads(request.POST['offices'])
     fontes = json.loads(request.POST['fontes'])
 
-    print('chant_list request fontes: {}'.format(fontes))
-
     chants = Chant.objects.filter(dataset_idx__in=data_sources)\
                 .filter(genre_id__in=genres)\
                 .filter(office_id__in=offices)\
