@@ -20,19 +20,33 @@ import pandas as pd
 @api_view(['POST'])
 def chant_list(request):
     data_sources = json.loads(request.POST['dataSources'])
-    incipit = request.POST['incipit']
+    chants = Chant.objects.filter(dataset_idx__in=data_sources)
+
     genres = json.loads(request.POST['genres'])
+    if (genres is not None):
+        chants = chants.filter(genre_id__in=genres)
+
     offices = json.loads(request.POST['offices'])
+    if (offices is not None):
+        chants = chants.filter(office_id__in=offices)
+
+    # Only apply the Fontes filter (source liturgical books)
+    # if at least some are actually used. If none are selected,
+    # this is probably a bug in the front-end.
     fontes = json.loads(request.POST['fontes'])
+    if (fontes is not None) and (len(fontes) > 0):
+        chants = chants.filter(siglum__in=fontes).order_by('incipit')
 
-    chants = Chant.objects.filter(dataset_idx__in=data_sources)\
-                .filter(genre_id__in=genres)\
-                .filter(office_id__in=offices)\
-                .filter(siglum__in=fontes)\
-                .order_by('incipit')
+    # chants = Chant.objects.filter(dataset_idx__in=data_sources)\
+    #             .filter(genre_id__in=genres)\
+    #             .filter(office_id__in=offices)\
+    #             .order_by('incipit')
 
+    incipit = request.POST['incipit']
     if incipit is not None:
         chants = chants.filter(incipit__icontains=incipit)
+
+    chants = chants.order_by('incipit')
     
     chants_serializer = ChantSerializer(chants, many=True)
     return JsonResponse(chants_serializer.data, safe=False)
