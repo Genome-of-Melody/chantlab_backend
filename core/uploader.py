@@ -40,6 +40,42 @@ class Uploader():
 
         return new_dataset_index
 
+
+    @classmethod
+    def add_to_dataset(cls, df, idx):
+        '''
+        Add data to existing dataset. If specified dataset does not exist,
+        creates dataset with name 'Undefined'.
+        '''
+        db_name = settings.DATABASE_NAME
+        con = sqlite3.connect(db_name)
+
+        dataset = Chant.objects.filter(dataset_idx=idx)
+        if dataset.exists():
+            dataset_name = dataset[0].dataset_name
+        else:
+            dataset_name = 'Undefined'
+
+        # get current maximum id
+        latest_id = Chant.objects.latest('id').id
+
+        # set ids of dataframe
+        start_id = latest_id + 1
+        df.index = [id for id in range(start_id, len(df.values) + start_id)]
+
+        # drop the id column
+        df.drop(['id'], axis=1, inplace=True)
+
+        # set dataset name and index
+        df['dataset_name'] = dataset_name
+        df['dataset_idx'] = idx
+
+        # append data to database
+        df.to_sql('chant', con, if_exists='append', index=True, index_label="id")
+
+        return dataset_name
+
+
     @classmethod
     def delete_dataset(cls, dataset_name):
         '''Remove all items that belong to the given `dataset_name`.

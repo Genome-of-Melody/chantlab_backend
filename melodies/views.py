@@ -131,6 +131,28 @@ def create_dataset(request):
     })
 
 
+@api_view(['GET', 'POST'])
+def add_to_dataset(request):
+
+    ids = json.loads(request.POST['idsToExport'])
+    dataset_idx = int(request.POST['idx'])
+
+    chants = Chant.objects.filter(pk__in=ids)
+    chants_df = pd.DataFrame.from_records(
+       chants.values_list()
+    )
+    opts = chants.model._meta
+    field_names = [field.name for field in opts.fields]
+    chants_df.columns = field_names
+
+    dataset_name = Uploader.add_to_dataset(chants_df, dataset_idx)
+
+    return JsonResponse({
+        "name": dataset_name,
+        "index": dataset_idx
+    })
+
+
 @api_view(['POST'])
 def delete_dataset(request):
     dataset_name = request.POST['name']
