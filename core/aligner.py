@@ -25,6 +25,7 @@ class Aligner():
         sources, urls, texts, volpianos = cls._get_alignment_data_from_db(ids)
 
         error_sources = []
+        error_ids = []
         success_sources = []
         success_ids = []
         success_urls = []
@@ -45,6 +46,7 @@ class Aligner():
                 texts_to_align.append(text_syllables)
             else:
                 error_sources.append(sources[i])
+                error_ids.append(i)
 
         aligned_volpianos = cls._get_volpiano_syllable_alignment(volpianos_to_align)
         volpiano_strings = [cls._get_volpiano_string_from_syllables(volpiano)
@@ -57,7 +59,10 @@ class Aligner():
 
         result = {
             'chants': chants,
-            'errors': error_sources, 
+            'errors': {
+                "sources": error_sources,
+                "ids": error_ids
+            }, 
             'success': {
                 'sources': success_sources,
                 'ids': success_ids,
@@ -86,6 +91,7 @@ class Aligner():
 
         # save errors
         error_sources = []
+        error_ids = []
         finished = False
 
         # iterate until there are no alignment errors
@@ -131,13 +137,17 @@ class Aligner():
                     # found an error, the alignment will be run again
                     finished = False
                     error_sources.append(sources[id])
+                    error_ids.append(id)
 
             ids = next_iteration_ids
             cls._cleanup(temp_dir + 'tmp.txt')
 
         result = {
             'chants': chants,
-            'errors': error_sources, 
+            'errors': {
+                "sources": error_sources,
+                "ids": error_ids
+            }, 
             'success': {
                 'sources': success_sources,
                 'ids': success_ids,
@@ -165,6 +175,7 @@ class Aligner():
 
         # save errors
         error_sources = []
+        error_ids = []
         finished = False
 
         # iterate until there are no alignment errors
@@ -215,13 +226,17 @@ class Aligner():
                     # found an error, the alignment will be run again
                     finished = False
                     error_sources.append(sources[id])
+                    error_ids.append(id)
 
             ids = next_iteration_ids
             cls._cleanup(temp_dir + 'tmp.txt')
 
         result = {
             'chants': chants,
-            'errors': error_sources, 
+            'errors': {
+                "sources": error_sources,
+                "ids": error_ids
+            }, 
             'success': {
                 'sources': success_sources,
                 'ids': success_ids,
