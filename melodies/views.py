@@ -92,6 +92,17 @@ def upload_data(request):
         })
 
 
+@api_view(['POST'])
+def update_volpiano(request):
+    id = int(request.POST['id'])
+    volpiano = request.POST['volpiano']
+
+    chant = Chant.objects.get(pk=id)
+    chant.volpiano = volpiano
+    chant.save()
+    return JsonResponse({"updated": id})
+
+
 @api_view(['GET'])
 def get_data_sources(request):
     data_sources = Chant.objects.values_list('dataset_idx', 'dataset_name').distinct()
