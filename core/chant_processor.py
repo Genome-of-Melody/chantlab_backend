@@ -22,7 +22,7 @@ class ChantProcessor():
 
 
     @classmethod
-    def get_syllables_from_volpiano(cls, volpiano):
+    def get_syllables_from_alpiano(cls, volpiano):
         """
         Divides a string of volpiano notation with separator signs
         into words and syllables.
@@ -50,19 +50,40 @@ class ChantProcessor():
 
 
     @classmethod
-    def check_volpiano_text_compatibility(cls, volpiano, text):
+    def check_volpiano_text_compatibility(cls, volpiano_words, text_words):
         '''
-        Check whether melody and text can be combined
+        Check whether melody and text can be combined. Implemented as a check
+        just of the number of words.
         '''
-        return len(volpiano) == len(text)
+        return len(volpiano_words) == len(text_words)
 
+    @classmethod
+    def try_fixing_volpiano_and_text_compatibility(cls, alpiano_words, text_words):
+        '''Attempts to apply fixes to some trivial incompatibilities between text and volpiano.
+
+        - Tries to pad the text so that it has the same number of words as the volpiano.
+
+        :param alpiano_words:
+        :param text_words:
+        :return:
+        '''
+        _DUMMY_SYLLABLE_TEXT = '#'
+        length_diff = len(alpiano_words) - len(text_words)
+        if length_diff > 0:
+            extra_alpiano_words = alpiano_words[-length_diff:]
+            dummy_text_words = [['#' for _ in al_word] for al_word in extra_alpiano_words]
+            text_words.extend(dummy_text_words)
+        return alpiano_words, text_words
 
     @classmethod
     def get_stressed_syllables(cls, text):
         '''
         Compute the stressed syllables of Latin text
         '''
-        text = re.sub('[^0-9a-zA-Z ]', ' ', text)       # remove non-alphanumeric characters
+        try:
+            text = re.sub('[^0-9a-zA-Z ]', ' ', text)       # remove non-alphanumeric characters
+        except:
+            return []
         try:
             transcriber = Transcriber("Classical", "Allen")
             transcription = transcriber.transcribe(text)
@@ -79,9 +100,8 @@ class ChantProcessor():
         '''
         Return an easily renderable representation of a chant
         '''
-        converter = chant21.cantus.ConverterCantusVolpiano(strict=True)
+        converter = chant21.cantus.ConverterCantusVolpiano(strict=False)
         converter.parseData(melody + '/' + text)
         chant = converter.stream
 
         return chant.toCHSON()
-

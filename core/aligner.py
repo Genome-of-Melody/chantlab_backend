@@ -35,7 +35,7 @@ class Aligner():
 
         for i in range(len(ids)):
             volpiano_separators = ChantProcessor.insert_separator_chars(volpianos[i])
-            volpiano_syllables = ChantProcessor.get_syllables_from_volpiano(volpiano_separators)
+            volpiano_syllables = ChantProcessor.get_syllables_from_alpiano(volpiano_separators)
             text_syllables = ChantProcessor.get_syllables_from_text(texts[i])
 
             if ChantProcessor.check_volpiano_text_compatibility(volpiano_syllables, text_syllables):
@@ -375,14 +375,21 @@ class Aligner():
 
 
     @classmethod
-    def _get_volpiano_text_JSON(cls, volpiano, text):
+    def _get_volpiano_text_JSON(cls, alpiano, text_words):
 
-        words = ChantProcessor.get_syllables_from_volpiano(volpiano)
+        alpiano_words = ChantProcessor.get_syllables_from_alpiano(alpiano)
         
-        if not ChantProcessor.check_volpiano_text_compatibility(words, text):
-            raise RuntimeError("Unequal text and volpiano length")
+        if not ChantProcessor.check_volpiano_text_compatibility(alpiano_words, text_words):
+            # This is a problem. Often a melody has a doxology without text at the end,
+            # and therefore we get a failure unnecessarily. There should be a solution
+            # for this that pads the fulltext with extra empty syllables (or just a
+            # character such as "#"). Therefore, we attempt to try fixing this issue with dummy
+            # syllables.
+            alpiano_words, text_words = ChantProcessor.try_fixing_volpiano_and_text_compatibility(alpiano_words, text_words)
+            if not ChantProcessor.check_volpiano_text_compatibility(alpiano_words, text_words):
+                raise RuntimeError("Unequal text and alpiano word/syllable counts")
 
-        return cls._combine_volpiano_and_text(words, text)
+        return cls._combine_volpiano_and_text(alpiano_words, text_words)
 
 
     @classmethod

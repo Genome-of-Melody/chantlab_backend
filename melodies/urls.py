@@ -1,7 +1,9 @@
-from django.conf.urls import url 
+from django.conf.urls import url
+from django.contrib import admin
 from melodies import views 
  
-urlpatterns = [ 
+urlpatterns = [
+    url(r'admin/', admin.site.urls),  #navigation url for admin page
     url(r'^api/chants/$', views.chant_list),
     url(r'^api/chants/(?P<pk>[0-9]+)$', views.chant_display),
     url(r'^api/chants/align/$', views.chant_align),

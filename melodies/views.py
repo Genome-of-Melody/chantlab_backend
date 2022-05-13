@@ -22,13 +22,19 @@ def chant_list(request):
     data_sources = json.loads(request.POST['dataSources'])
     chants = Chant.objects.filter(dataset_idx__in=data_sources)
 
+    print('Debug: chant_list(request): before applying genres filter, got {} chants'.format(len(chants)))
+
     genres = json.loads(request.POST['genres'])
     if (genres is not None):
         chants = chants.filter(genre_id__in=genres)
 
+    print('Debug: chant_list(request):  before applying offices filter, got {} chants'.format(len(chants)))
+
     offices = json.loads(request.POST['offices'])
     if (offices is not None):
         chants = chants.filter(office_id__in=offices)
+
+    print('Debug: chant_list(request):  before applying fontes filter, got {} chants.'.format(len(chants)))
 
     # Only apply the Fontes filter (source liturgical books)
     # if at least some are actually used. If none are selected,
