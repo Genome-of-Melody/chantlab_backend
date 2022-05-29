@@ -71,7 +71,8 @@ class ChantProcessor():
         length_diff = len(alpiano_words) - len(text_words)
         if length_diff > 0:
             extra_alpiano_words = alpiano_words[-length_diff:]
-            dummy_text_words = [['#' for _ in al_word] for al_word in extra_alpiano_words]
+            dummy_text_words = [[_DUMMY_SYLLABLE_TEXT for _ in al_word]
+                                for al_word in extra_alpiano_words]
             text_words.extend(dummy_text_words)
         return alpiano_words, text_words
 
@@ -105,3 +106,20 @@ class ChantProcessor():
         chant = converter.stream
 
         return chant.toCHSON()
+
+    @classmethod
+    def build_chant_name(cls, chant):
+        '''
+        Returns a string for humans to read as the chant name: incipit
+        (at most three words) and source name.
+
+        :param chant: a models.Chant object retrieved from the database.
+
+        :return: Incipit and source name. If either is missing, special
+            token: [unnamed] if no incipit, [nosource] if no source.
+        '''
+        incipit = chant.incipit if chant.incipit else '[unnamed]'
+        incipit_name = '_'.join(incipit.split()[:3])
+        siglum = chant.siglum if chant.siglum else '[nosource]'
+        siglum = ''.join(siglum.replace('(', '').replace(')', '').split())
+        return '{}__{}'.format(incipit_name, siglum)

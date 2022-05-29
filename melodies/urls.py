@@ -9,7 +9,7 @@ urlpatterns = [
     url(r'^api/chants/align/$', views.chant_align),
     url(r'^api/chants/upload/$', views.upload_data),
     url(r'^api/chants/data-sources', views.get_data_sources),
-    url(r'^api/chants/fontes', views.get_fontes),
+    url(r'^api/chants/fontes', views.get_sigla),
     url(r'^api/chants/export/$', views.export_dataset),
     url(r'^api/chants/create-dataset/$', views.create_dataset),
     url(r'^api/chants/add-to-dataset/$', views.add_to_dataset),

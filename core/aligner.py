@@ -1,4 +1,6 @@
 import os
+import re
+import uuid
 
 from django.http.response import JsonResponse
 from rest_framework import status
@@ -22,7 +24,7 @@ class Aligner():
         '''
         Align chants using the word-based algorithm
         '''
-        sources, urls, texts, volpianos = cls._get_alignment_data_from_db(ids)
+        sources, urls, texts, volpianos, names = cls._get_alignment_data_from_db(ids)
 
         error_sources = []
         error_ids = []
@@ -79,14 +81,21 @@ class Aligner():
         '''
         Align chants using MSA on pitch values
         '''
+        # Dealing with alignment temporary files to avoid elementary race conditions.
         temp_dir = settings.TEMP_DIR
+        if not os.path.isdir(temp_dir):
+            os.mkdir(temp_dir)
 
-        # to make sure the file is empty
-        cls._cleanup(temp_dir + 'tmp.txt')
+        mafft_job_name = str(uuid.uuid4().hex)
+        mafft_inputs_temp_file_name = mafft_job_name + '_mafft-inputs.txt'
+        mafft_inputs_path = os.path.join(temp_dir, mafft_inputs_temp_file_name)
+
+        # Make sure the file is empty:
+        cls._cleanup(mafft_inputs_path)
 
         # setup mafft
         mafft = Mafft()
-        mafft.set_input(temp_dir + 'tmp.txt')
+        mafft.set_input(mafft_inputs_path)
         mafft.add_option('--text')
 
         # save errors
@@ -98,7 +107,12 @@ class Aligner():
         while not finished:
             finished = True
 
-            sources, urls, texts, volpianos = cls._get_alignment_data_from_db(ids)
+            sources, urls, texts, volpianos, names = cls._get_alignment_data_from_db(ids)
+            names_dict = {id: name for name, id in zip(ids, names)}
+
+            ### DEBUG
+            print('Aligning IDs: {}'.format(ids))
+            print('Aligning names: {}'.format(names))
 
             success_sources = []
             success_ids = []
@@ -112,13 +126,17 @@ class Aligner():
             try:
                 mafft.run()
             except RuntimeError as e:
-                cls._cleanup(temp_dir + 'tmp.txt')
-                return JsonResponse({'message': 'There was a problem with MAFFT'},
+                cls._cleanup(mafft_inputs_path)
+                return JsonResponse({'message': 'There was a problem with MAFFT runtime'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             # retrieve alignments
             aligned_melodies = mafft.get_aligned_sequences()
             melody_order = mafft.get_sequence_order()
+
+            # retrieve guide tree
+            guide_tree = mafft.get_guide_tree()
+            guide_tree = cls._rename_tree_nodes(guide_tree, names)
 
             # try aligning melody and text
             text_syllabified = [ChantProcessor.get_syllables_from_text(text) for text in texts]
@@ -135,12 +153,12 @@ class Aligner():
                     next_iteration_ids.append(ids[id])
                 except RuntimeError as e:
                     # found an error, the alignment will be run again
-                    finished = False
+                    # finished = False
                     error_sources.append(sources[id])
                     error_ids.append(id)
 
             ids = next_iteration_ids
-            cls._cleanup(temp_dir + 'tmp.txt')
+            cls._cleanup(mafft_inputs_path)   # Comment out this cleanup to retain MAFFT output files
 
         result = {
             'chants': chants,
@@ -153,7 +171,9 @@ class Aligner():
                 'ids': success_ids,
                 'volpianos': success_volpianos,
                 'urls': success_urls
-            }}
+            },
+            'guide_tree': guide_tree,
+        }
 
         return result
 
@@ -164,9 +184,15 @@ class Aligner():
         Align chants using MSA on interval values
         '''
         temp_dir = settings.TEMP_DIR
+        if not os.path.isdir(temp_dir):
+            os.mkdir(temp_dir)
 
-        # to make sure the file is empty
-        cls._cleanup(temp_dir + 'tmp.txt')
+        mafft_job_name = str(uuid.uuid4().hex)
+        mafft_inputs_temp_file_name = mafft_job_name + '_mafft-inputs.txt'
+        mafft_inputs_path = os.path.join(temp_dir, mafft_inputs_temp_file_name)
+
+        # Make sure the file is empty:
+        cls._cleanup(mafft_inputs_path)
 
         # setup mafft
         mafft = Mafft()
@@ -182,7 +208,7 @@ class Aligner():
         while not finished:
             finished = True
 
-            sources, urls, texts, volpianos = cls._get_alignment_data_from_db(ids)
+            sources, urls, texts, volpianos, names = cls._get_alignment_data_from_db(ids)
 
             success_sources = []
             success_ids = []
@@ -197,7 +223,7 @@ class Aligner():
             try:
                 mafft.run()
             except RuntimeError as e:
-                cls._cleanup(temp_dir + 'tmp.txt')
+                cls._cleanup(mafft_inputs_path)
                 return JsonResponse({'message': 'There was a problem with MAFFT'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -229,7 +255,9 @@ class Aligner():
                     error_ids.append(id)
 
             ids = next_iteration_ids
-            cls._cleanup(temp_dir + 'tmp.txt')
+            cls._cleanup(mafft_inputs_path)
+
+        cls._cleanup(mafft_inputs_path)
 
         result = {
             'chants': chants,
@@ -406,6 +434,10 @@ class Aligner():
         if os.path.exists(file):
             os.remove(file)
 
+        treefile = file + '.tree'
+        if os.path.exists(treefile):
+            os.remove(treefile)
+
 
     @classmethod
     def _get_alignment_data_from_db(cls, ids):
@@ -413,16 +445,22 @@ class Aligner():
         urls = []
         texts = []
         volpianos = []
+        names = []
 
         for id in ids:
             try:
                 chant = Chant.objects.get(pk=id)
+
                 siglum = chant.siglum if chant.siglum else ""
                 position = chant.position if chant.position else ""
                 folio = chant.folio if chant.folio else ""
                 source = siglum + ", " + folio + ", " + position
                 sources.append(source)
+
                 urls.append(chant.drupal_path)
+
+                name = ChantProcessor.build_chant_name(chant)
+                names.append(name)
             except Chant.DoesNotExist:
                 return JsonResponse({'message': 'Chant with id ' + str(id) + ' does not exist'},
                     status=status.HTTP_404_NOT_FOUND)
@@ -430,4 +468,24 @@ class Aligner():
             texts.append(chant.full_text)
             volpianos.append(chant.volpiano)
 
-        return (sources, urls, texts, volpianos)
+        return sources, urls, texts, volpianos, names
+
+    @classmethod
+    def _rename_tree_nodes(cls, tree_string, names):
+        """The guide tree from MAFFT uses numerical indices instead of meaningful names
+        for its leafs. We re-insert the meaningful names here.
+        """
+        ## DEBUG
+        print('_rename_tree_nodes(): names total: {}'.format(len(names)))
+
+        def _sub_group(match, names):
+            print('Matched ID: {}'.format(match.group()))
+            return names[int(match.group())]
+
+        # get rid of newlines
+        tree_string = ''.join(tree_string.split('\n'))
+        named_tree_string = re.sub('(?<=[0-9]__)([0-9]+)',
+                                   lambda m: _sub_group(m, names),
+                                   tree_string)
+
+        return named_tree_string

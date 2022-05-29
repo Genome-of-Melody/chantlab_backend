@@ -139,4 +139,4 @@ CORS_ORIGIN_WHITELIST = (
 )
 
 # Directory with temporary files
-TEMP_DIR = ''
+TEMP_DIR = 'mafft-temp'

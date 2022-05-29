@@ -27,7 +27,8 @@ class Chant(models.Model):
     notes = models.TextField(blank=True, null=True)
     dataset_name = models.TextField(blank=True, null=True)
     dataset_idx = models.IntegerField(blank=True, null=True)
+    century_code = models.TextField(blank=True, null=True)
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'chant'

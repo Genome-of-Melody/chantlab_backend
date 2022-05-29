@@ -110,7 +110,7 @@ def get_data_sources(request):
 
 
 @api_view(['POST'])
-def get_fontes(request):
+def get_sigla(request):
     data_sources = json.loads(request.POST['dataSources'])
 
     # This needs to be re-done so that only fontes pertaining to the current

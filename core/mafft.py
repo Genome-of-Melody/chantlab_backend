@@ -43,14 +43,18 @@ class Mafft():
         self._prefix = prefix
 
 
-    def add_volpiano(self, volpiano):
+    def add_volpiano(self, volpiano, name=None):
         if not self._input:
             raise RuntimeError("Input file must be defined"
                                "before adding a chant")
                                
         processed = _preprocess_volpiano(volpiano)
         with open(self._input, 'a') as file:
-            file.write("> " + str(self._counter) + "\n")
+
+            if name is None:
+                name = str(self._counter)
+
+            file.write("> " + name + "\n")
             file.write(processed + "\n")
             self._counter += 1
 
@@ -82,6 +86,8 @@ class Mafft():
         sequences = []
         sequence_idxs = []
         cur_sequence = ""
+
+        # Iterate over lines of FASTA-formatted MSA output.
         for part_sequence in stdout.split('\n'):
             # we are at the end of the output, only empty string remains
             if cur_sequence and not part_sequence:
@@ -110,7 +116,7 @@ class Mafft():
                                ''.format(self._output_guide_tree_file))
 
         with open(self._output_guide_tree_file, 'r') as gt:
-            gt_text = ''.join(gt.readline())
+            gt_text = ''.join(gt.readlines())
 
         guide_tree = self.parse_guide_tree(gt_text)
         self._guide_tree = guide_tree
@@ -122,6 +128,8 @@ class Mafft():
         Binary tree, every node also remembers its distace to its parent.
         '''
         # Not implemented yet.
+        # Has to happen here, because the labels in the tree are defined w.r.t.
+        # the MAFFT input file ordering (I guess).
         return gt_text
 
 
