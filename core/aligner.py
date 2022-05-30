@@ -108,11 +108,11 @@ class Aligner():
             finished = True
 
             sources, urls, texts, volpianos, names = cls._get_alignment_data_from_db(ids)
-            names_dict = {id: name for name, id in zip(ids, names)}
+            # names_dict = {id: name for name, id in zip(ids, names)}
 
             ### DEBUG
-            print('Aligning IDs: {}'.format(ids))
-            print('Aligning names: {}'.format(names))
+            #print('Aligning IDs: {}'.format(ids))
+            #print('Aligning names: {}'.format(names))
 
             success_sources = []
             success_ids = []
@@ -183,6 +183,9 @@ class Aligner():
         '''
         Align chants using MSA on interval values
         '''
+
+        print('DEBUG: running MAFFT intervals with ids {}'.format(ids))
+
         temp_dir = settings.TEMP_DIR
         if not os.path.isdir(temp_dir):
             os.mkdir(temp_dir)
@@ -196,7 +199,7 @@ class Aligner():
 
         # setup mafft
         mafft = Mafft()
-        mafft.set_input(temp_dir + 'tmp.txt')
+        mafft.set_input(mafft_inputs_path)
         mafft.add_option('--text')
 
         # save errors
@@ -234,6 +237,14 @@ class Aligner():
             ]
             sequence_order = mafft.get_sequence_order()
 
+            print('DEBUG: Aligned melodies volpianos:')
+            print(aligned_melodies_volpianos)
+
+            # retrieve guide tree
+            guide_tree = mafft.get_guide_tree()
+            # print('DEBUG: Intervals alignment, guide tree: {}').format(guide_tree)
+            guide_tree = cls._rename_tree_nodes(guide_tree, names)
+            # print('DEBUG: Intervals alignment, named guide tree: {}').format(guide_tree)
 
             # try aligning melody and text
             text_syllabified = [ChantProcessor.get_syllables_from_text(text) for text in texts]
@@ -250,7 +261,7 @@ class Aligner():
                     next_iteration_ids.append(ids[id])
                 except RuntimeError as e:
                     # found an error, the alignment will be run again
-                    finished = False
+                    # finished = False
                     error_sources.append(sources[id])
                     error_ids.append(id)
 
@@ -270,7 +281,9 @@ class Aligner():
                 'ids': success_ids,
                 'volpianos': success_volpianos,
                 'urls': success_urls
-            }}
+            },
+            'guide_tree': guide_tree,
+        }
 
         return result
 
@@ -476,10 +489,10 @@ class Aligner():
         for its leafs. We re-insert the meaningful names here.
         """
         ## DEBUG
-        print('_rename_tree_nodes(): names total: {}'.format(len(names)))
+        # print('_rename_tree_nodes(): names total: {}'.format(len(names)))
 
         def _sub_group(match, names):
-            print('Matched ID: {}'.format(match.group()))
+            # print('Matched ID: {}'.format(match.group()))
             return names[int(match.group())]
 
         # get rid of newlines
