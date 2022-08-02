@@ -70,7 +70,9 @@ class Aligner():
                 'ids': success_ids,
                 'volpianos': volpiano_strings,
                 'urls': success_urls
-            }
+            },
+            'guideTree': None,
+            'newickNamesDict': None
         }
 
         return result
@@ -107,8 +109,8 @@ class Aligner():
         while not finished:
             finished = True
 
-            sources, urls, texts, volpianos, names = cls._get_alignment_data_from_db(ids)
-            # names_dict = {id: name for name, id in zip(ids, names)}
+            sources, urls, texts, volpianos, newick_names = cls._get_alignment_data_from_db(ids)
+            newick_names_dict = {name: id for id, name in zip(ids, newick_names)}
 
             ### DEBUG
             #print('Aligning IDs: {}'.format(ids))
@@ -136,7 +138,7 @@ class Aligner():
 
             # retrieve guide tree
             guide_tree = mafft.get_guide_tree()
-            guide_tree = cls._rename_tree_nodes(guide_tree, names)
+            guide_tree = cls._rename_tree_nodes(guide_tree, newick_names)
 
             # try aligning melody and text
             text_syllabified = [ChantProcessor.get_syllables_from_text(text) for text in texts]
@@ -172,7 +174,8 @@ class Aligner():
                 'volpianos': success_volpianos,
                 'urls': success_urls
             },
-            'guide_tree': guide_tree,
+            'guideTree': guide_tree,
+            'newickNamesDict': newick_names_dict,
         }
 
         return result
@@ -211,7 +214,8 @@ class Aligner():
         while not finished:
             finished = True
 
-            sources, urls, texts, volpianos, names = cls._get_alignment_data_from_db(ids)
+            sources, urls, texts, volpianos, newick_names = cls._get_alignment_data_from_db(ids)
+            newick_names_dict = {name: id for id, name in zip(ids, newick_names)}
 
             success_sources = []
             success_ids = []
@@ -243,7 +247,7 @@ class Aligner():
             # retrieve guide tree
             guide_tree = mafft.get_guide_tree()
             # print('DEBUG: Intervals alignment, guide tree: {}').format(guide_tree)
-            guide_tree = cls._rename_tree_nodes(guide_tree, names)
+            guide_tree = cls._rename_tree_nodes(guide_tree, newick_names)
             # print('DEBUG: Intervals alignment, named guide tree: {}').format(guide_tree)
 
             # try aligning melody and text
@@ -282,7 +286,8 @@ class Aligner():
                 'volpianos': success_volpianos,
                 'urls': success_urls
             },
-            'guide_tree': guide_tree,
+            'guideTree': guide_tree,
+            'newickNamesDict': newick_names_dict,
         }
 
         return result
@@ -458,7 +463,7 @@ class Aligner():
         urls = []
         texts = []
         volpianos = []
-        names = []
+        newick_names = []
 
         for id in ids:
             try:
@@ -472,8 +477,8 @@ class Aligner():
 
                 urls.append(chant.drupal_path)
 
-                name = ChantProcessor.build_chant_name(chant)
-                names.append(name)
+                newick_name = ChantProcessor.build_chant_newick_name(chant)
+                newick_names.append(newick_name)
             except Chant.DoesNotExist:
                 return JsonResponse({'message': 'Chant with id ' + str(id) + ' does not exist'},
                     status=status.HTTP_404_NOT_FOUND)
@@ -481,7 +486,7 @@ class Aligner():
             texts.append(chant.full_text)
             volpianos.append(chant.volpiano)
 
-        return sources, urls, texts, volpianos, names
+        return sources, urls, texts, volpianos, newick_names
 
     @classmethod
     def _rename_tree_nodes(cls, tree_string, names):

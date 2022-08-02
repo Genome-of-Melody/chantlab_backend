@@ -108,7 +108,7 @@ class ChantProcessor():
         return chant.toCHSON()
 
     @classmethod
-    def build_chant_name(cls, chant):
+    def build_chant_newick_name(cls, chant):
         '''
         Returns a string for humans to read as the chant name: incipit
         (at most three words) and source name.
@@ -119,7 +119,7 @@ class ChantProcessor():
             token: [unnamed] if no incipit, [nosource] if no source.
         '''
         incipit = chant.incipit if chant.incipit else '[unnamed]'
-        incipit_name = '_'.join(incipit.split()[:3])
+        incipit_name = '_'.join(incipit.split())
         siglum = chant.siglum if chant.siglum else '[nosource]'
-        siglum = ''.join(siglum.replace('(', '').replace(')', '').split())
+        siglum = '_'.join(siglum.replace('(', '').replace(')', '').split())
         return '{}__{}'.format(incipit_name, siglum)
