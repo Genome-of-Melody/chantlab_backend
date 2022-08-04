@@ -12,8 +12,6 @@ cymem==2.0.5
 Django==3.1.7
 django-cors-headers==3.7.0
 djangorestframework==3.12.2
-fasttext==0.9.2
-gensim==3.8.3
 gitdb==4.0.5
 GitPython==3.1.14
 greek-accentuation==1.2.0
@@ -37,7 +35,6 @@ pytz==2021.1
 PyYAML==5.3.1
 regex==2020.11.13
 requests==2.25.1
-scipy==1.6.1
 six==1.15.0
 smart-open==4.2.0
 smmap==3.0.5
@@ -47,7 +44,6 @@ srsly==1.0.5
 stanza==1.2
 stringcase==1.2.0
 thinc==7.4.5
-torch==1.8.0
 tqdm==4.59.0
 typing-extensions==3.7.4.3
 urllib3==1.26.3
