@@ -2,6 +2,10 @@ import os
 import subprocess
 import sys
 
+MAFFT_PATH = '/Users/hajicj/CES_TF/mafft/mafft-mac/mafftdir/bin/mafft'
+if not os.path.isfile(MAFFT_PATH):
+    MAFFT_PATH = 'mafft'
+
 class Mafft():
     '''
     The Mafft class is the interface for working with the MAFFT software
@@ -156,7 +160,7 @@ class Mafft():
     def run(self):
         command = ""
         command += self._prefix + " " if self._prefix else ""
-        command += "mafft "
+        command += MAFFT_PATH + " "  # Temporary, for testing with local mafft install
         command += " ".join(self._options) + " "
         command += self._input + " " if self._input else ""
         process = subprocess.run(command, capture_output=True, shell=True)

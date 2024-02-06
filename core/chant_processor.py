@@ -1,6 +1,7 @@
 import chant21
-from cltk.phonology.lat.syllabifier import syllabify
-from cltk.phonology.lat.transcription import Transcriber
+# from cltk.phonology.lat.syllabifier import syllabify
+# from cltk.phonology.lat.transcription import Transcriber
+from volpiano_display_utilities.cantus_text_syllabification import syllabify_text
 import re
 
 class ChantProcessor():
@@ -16,8 +17,9 @@ class ChantProcessor():
         @returns: list of words, where each word is a list of syllables
         """
         text = re.sub('[^0-9a-zA-Z ]', ' ', text)
-        words = text.split(' ')
-        syllables = [syllabify(word) for word in words]
+        syllables = syllabify_text(text)[0].section
+        # words = text.split(' ')
+        # syllables = [syllabify(word) for word in words]
         return syllables
 
 
@@ -85,14 +87,16 @@ class ChantProcessor():
             text = re.sub('[^0-9a-zA-Z ]', ' ', text)       # remove non-alphanumeric characters
         except:
             return []
-        try:
-            transcriber = Transcriber("Classical", "Allen")
-            transcription = transcriber.transcribe(text)
-        except:
-            return []
-        stressed_words = [word.split('.') for word in transcription.split()]
-        stresses = [[1 if syllable[0] == '\'' else 0 for syllable in word] \
-            for word in stressed_words]
+        # Stressed syllable detection removed because of CLTK dependency causing severe installation issues.
+        # try:
+        #     transcriber = Transcriber("Classical", "Allen")
+        #     transcription = transcriber.transcribe(text)
+        # except:
+        #     return []
+        # stressed_words = [word.split('.') for word in transcription.split()]
+        # stresses = [[1 if syllable[0] == '\'' else 0 for syllable in word] \
+        #    for word in stressed_words]
+        stresses = []  # No stress information is computed now.
         return stresses
 
 
