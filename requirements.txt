@@ -1,6 +1,7 @@
 chant21
-volpiano_display_utilities @ git+ssh://git@github.com/DDMAL/volpiano-display-utilities.git
+volpiano_display_utilities @ git+https://github.com/DDMAL/volpiano-display-utilities.git
 django==3.1.7
 djangorestframework==3.12.2
 django-cors-headers==3.7.0
 pandas
+gunicorn==20.0.4
