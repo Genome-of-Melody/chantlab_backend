@@ -17,7 +17,7 @@ class ChantProcessor():
         @returns: list of words, where each word is a list of syllables
         """
         text = re.sub('[^0-9a-zA-Z ]', ' ', text)
-        syllables = syllabify_text(text)[0].section
+        syllables = syllabify_text(text)[0][0].section
         # words = text.split(' ')
         # syllables = [syllabify(word) for word in words]
         return syllables
