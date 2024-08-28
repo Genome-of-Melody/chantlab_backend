@@ -9,7 +9,7 @@ from melodies.models import Chant
 from melodies.serializers import ChantSerializer
 from rest_framework.decorators import api_view
 
-from core.aligner import Aligner
+from core.analyzer import Analyzer
 from core.chant_processor import ChantProcessor
 from core.exporter import Exporter
 from core.uploader import Uploader
@@ -185,14 +185,20 @@ def chant_align(request):
     mode = request.POST['mode']
     
     if mode == "full":
-        return JsonResponse(Aligner.alignment_pitches(ids))
+        return JsonResponse(Analyzer.alignment_pitches(ids))
     elif mode == "intervals":
-        return JsonResponse(Aligner.alignment_intervals(ids))
+        return JsonResponse(Analyzer.alignment_intervals(ids))
     else:
-        return JsonResponse(Aligner.alignment_syllables(ids))
+        return JsonResponse(Analyzer.alignment_syllables(ids))
 
     
 @api_view(['POST'])
 def chant_align_text(request):
     
     return JsonResponse({})
+
+@api_view(['POST'])
+def mrbayes_volpiano(request):
+    ids = request.POST['ids']
+    parsedChants = request.POST['parsedChats']
+    return JsonResponse(Analyzer.mrbayes_analyzis(ids, parsedChants))

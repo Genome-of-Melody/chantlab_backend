@@ -10,10 +10,10 @@ from melodies.models import Chant
 from core.chant_processor import ChantProcessor
 from core.interval_processor import IntervalProcessor
 from core.mafft import Mafft
-
+from core.mrbayes import run_mrbayes_volpiano
 from django.conf import settings
 
-class Aligner():
+class Analyzer():
     '''
     The Aligner class provides methods to compute chants' alignment
     '''
@@ -288,6 +288,19 @@ class Aligner():
             },
             'guideTree': guide_tree,
             'newickNamesDict': newick_names_dict,
+        }
+
+        return result
+
+
+    @classmethod
+    def mrbayes_analyzis(cls, ids, parsedChants):
+        _, _, _, _, newick_names = cls._get_alignment_data_from_db(ids)
+        phyl_tree = run_mrbayes_volpiano(parsedChants)
+        #phyl_tree = cls._rename_tree_nodes(phyl_tree, newick_names)
+        
+        result = {
+            'phylogeneticTree': phyl_tree,
         }
 
         return result

@@ -3,7 +3,8 @@ FROM python:3.11-bullseye
 RUN pip install --upgrade pip
 
 # Download and install Anaconda3
-RUN apt-get update && apt-get install -y wget bzip2 \
+RUN apt-get update && apt-get install -y wget bzip2 build-essential git cmake libreadline-dev libncurses5-dev zlib1g-dev libssl-dev \
+    && apt-get clean\
     && rm -rf /var/lib/apt/lists/* \
     && wget https://repo.anaconda.com/archive/Anaconda3-2021.11-Linux-x86_64.sh -O ~/anaconda.sh \
     && bash ~/anaconda.sh -b -p /opt/conda \
@@ -19,11 +20,21 @@ RUN apt update && apt install -y git
 COPY ./requirements.txt .
 RUN /bin/bash -c "source activate chantlab && pip install -r requirements.txt"
 RUN conda install bioconda::mafft
+RUN git clone --depth=1 https://github.com/NBISweden/MrBayes.git /opt/mrbayes
+WORKDIR /opt/mrbayes
+RUN ./configure
+RUN make && make install
+ENV PATH="/usr/local/bin:$PATH"
+WORKDIR /
+
+
+
 
 # Copy all project files to the VM
 COPY ./backend /opt/chantlab_backend/backend
 COPY ./core /opt/chantlab_backend/core
 COPY ./mafft-temp /opt/chantlab_backend/mafft-temp
+COPY ./mrbayes-temp /opt/chantlab_backend/mrbayes-temp
 COPY ./melodies /opt/chantlab_backend/melodies
 COPY ./scripts /opt/chantlab_backend/scripts
 COPY ./chants.db /opt/chantlab_backend/chants.db
