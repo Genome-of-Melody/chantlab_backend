@@ -4,6 +4,15 @@
 /backend/__pycache__/
 /core/__pycache__/
 /melodies/__pycache__/
+/melodies/__pycache__/
+**/__pycache__/
+__pycache__/
+
+# Python compiled files
+*.pyc
+*.pyo
+*.pyd
+
 
 # compiled output
 /dist
