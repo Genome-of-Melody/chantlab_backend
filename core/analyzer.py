@@ -100,6 +100,7 @@ class Analyzer():
         mafft = Mafft()
         mafft.set_input(mafft_inputs_path)
         mafft.add_option('--text')
+        mafft.add_option('--textmatrix data/00_textmatrix_complete')
 
         # save errors
         error_sources = []
@@ -206,6 +207,7 @@ class Analyzer():
         mafft = Mafft()
         mafft.set_input(mafft_inputs_path)
         mafft.add_option('--text')
+        mafft.add_option('--textmatrix data/00_textmatrix_complete')
 
         # save errors
         error_sources = []

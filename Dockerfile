@@ -8,7 +8,13 @@ RUN apt-get update && apt-get install -y wget bzip2 build-essential git cmake li
     && rm -rf /var/lib/apt/lists/* \
     && wget https://repo.anaconda.com/archive/Anaconda3-2021.11-Linux-x86_64.sh -O ~/anaconda.sh \
     && bash ~/anaconda.sh -b -p /opt/conda \
-    && rm ~/anaconda.sh
+    && rm ~/anaconda.sh \
+    && wget https://mafft.cbrc.jp/alignment/software/mafft_7.505-1_amd64.deb \
+    && dpkg -i mafft_7.505-1_amd64.deb || apt-get install -f -y \
+    && rm mafft_7.505-1_amd64.deb \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV PATH="/opt/conda/bin:${PATH}"
 RUN conda init bash
 RUN conda create -n chantlab python=3.11
@@ -19,7 +25,6 @@ RUN apt update && apt install -y git
 # Install all requirements
 COPY ./requirements.txt .
 RUN /bin/bash -c "source activate chantlab && pip install -r requirements.txt"
-RUN conda install bioconda::mafft
 RUN git clone --depth=1 https://github.com/NBISweden/MrBayes.git /opt/mrbayes
 WORKDIR /opt/mrbayes
 RUN ./configure
@@ -35,6 +40,7 @@ COPY ./backend /opt/chantlab_backend/backend
 COPY ./core /opt/chantlab_backend/core
 COPY ./mafft-temp /opt/chantlab_backend/mafft-temp
 COPY ./mrbayes-temp /opt/chantlab_backend/mrbayes-temp
+COPY ./data /opt/chantlab_backend/data
 COPY ./melodies /opt/chantlab_backend/melodies
 COPY ./scripts /opt/chantlab_backend/scripts
 COPY ./chants.db /opt/chantlab_backend/chants.db
