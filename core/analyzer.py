@@ -72,7 +72,8 @@ class Analyzer():
                 'urls': success_urls
             },
             'guideTree': None,
-            'newickNamesDict': None
+            'newickNamesDict': None,
+            'alignmentMode': 'syllables'
         }
 
         return result
@@ -176,6 +177,7 @@ class Analyzer():
             },
             'guideTree': guide_tree,
             'newickNamesDict': newick_names_dict,
+            'alignmentMode': 'full'
         }
 
         return result
@@ -288,6 +290,7 @@ class Analyzer():
             },
             'guideTree': guide_tree,
             'newickNamesDict': newick_names_dict,
+            'alignmentMode': 'intervals'
         }
 
         return result
