@@ -40,7 +40,7 @@ COPY ./backend /opt/chantlab_backend/backend
 COPY ./core /opt/chantlab_backend/core
 COPY ./mafft-temp /opt/chantlab_backend/mafft-temp
 COPY ./mrbayes-temp /opt/chantlab_backend/mrbayes-temp
-COPY ./data /opt/chantlab_backend/data
+COPY ./resources /opt/chantlab_backend/resources
 COPY ./melodies /opt/chantlab_backend/melodies
 COPY ./scripts /opt/chantlab_backend/scripts
 COPY ./chants.db /opt/chantlab_backend/chants.db

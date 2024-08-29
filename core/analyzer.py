@@ -10,7 +10,7 @@ from melodies.models import Chant
 from core.chant_processor import ChantProcessor
 from core.interval_processor import IntervalProcessor
 from core.mafft import Mafft
-from core.mrbayes import run_mrbayes_volpiano
+from core.mrbayes import MrBayesVolpiano
 from django.conf import settings
 
 class Analyzer():
@@ -100,7 +100,7 @@ class Analyzer():
         mafft = Mafft()
         mafft.set_input(mafft_inputs_path)
         mafft.add_option('--text')
-        mafft.add_option('--textmatrix data/00_textmatrix_complete')
+        mafft.add_option('--textmatrix resources/00_textmatrix_complete')
 
         # save errors
         error_sources = []
@@ -207,7 +207,7 @@ class Analyzer():
         mafft = Mafft()
         mafft.set_input(mafft_inputs_path)
         mafft.add_option('--text')
-        mafft.add_option('--textmatrix data/00_textmatrix_complete')
+        mafft.add_option('--textmatrix resources/00_textmatrix_complete')
 
         # save errors
         error_sources = []
@@ -299,13 +299,16 @@ class Analyzer():
 
 
     @classmethod
-    def mrbayes_analyzis(cls, ids, parsedChants):
-        _, _, _, _, newick_names = cls._get_alignment_data_from_db(ids)
-        phyl_tree = run_mrbayes_volpiano(parsedChants)
-        #phyl_tree = cls._rename_tree_nodes(phyl_tree, newick_names)
+    def mrbayes_analyzis(cls, ids, alpianos, number_of_generations):
+        _, _, _, _, newick_names = cls._get_alignment_data_from_db(ids) # ToDo take newick names/sources names from request instead
+        mrbayes = MrBayesVolpiano(ngen = number_of_generations)
+        newick, nexus_con_tre, nexus_alignment, mb_script = mrbayes.run(alignment_names=newick_names, alpianos=alpianos)
         
         result = {
-            'phylogeneticTree': phyl_tree,
+            'newick': cls._rename_tree_nodes(newick, newick_names),
+            'mbScript': mb_script,
+            'nexusAlignment': nexus_alignment,
+            'nexusConTre': nexus_con_tre
         }
 
         return result

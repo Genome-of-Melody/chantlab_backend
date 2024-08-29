@@ -200,5 +200,6 @@ def chant_align_text(request):
 @api_view(['POST'])
 def mrbayes_volpiano(request):
     ids = json.loads(request.POST['ids'])
-    parsedChants = request.POST['parsedChants']
-    return JsonResponse(Analyzer.mrbayes_analyzis(ids, parsedChants))
+    alpianos = json.loads(request.POST['alpianos'])
+    number_of_generations = int(request.POST['numberOfGenerations'])
+    return JsonResponse(Analyzer.mrbayes_analyzis(ids, alpianos, number_of_generations))
