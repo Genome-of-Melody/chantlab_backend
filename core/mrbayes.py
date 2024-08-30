@@ -39,7 +39,7 @@ class MrBayesVolpiano():
                         logging.error("Different sequences have different partition lengths.")
                         logging.error(partitions)
                         logging.error(alpianos)
-                        return "Melodies are not aligned! Different sequences have different partition lengths.", "", "", ""
+                        return "", "", "", "", "Melodies are not aligned! Different sequences have different partition lengths. Partitions: {} Alpianos: {}".format(partitions, alpianos)
                     sequence_length += len(subsequence)
             init_paritions = False
             melodies[source_name] = ''.join(subsequences)
@@ -74,14 +74,14 @@ class MrBayesVolpiano():
             logging.error("Cannot find chantlab.nexus.con.tre file - check the chantlab.log for more information.")
             con_tre_file_path = os.path.join(temp_dir, 'chantlab.log')
             with open(con_tre_file_path, 'r') as con_tre_file:
-                newick = con_tre_file.read()
-            nexus_con_tre = ""
+                log = con_tre_file.read()
+            return "", "", nexus_content, mb_content, "Cannot find chantlab.nexus.con.tre file, check the log: {}".format(log)
 
         # Delete the generated directory and its contents
         shutil.rmtree(temp_dir)
 
 
-        return newick, nexus_con_tre, nexus_content, mb_content
+        return MrBayesVolpiano.__rename_tree_nodes(newick, alignment_names), nexus_con_tre, nexus_content, mb_content, ""
 
     def __extract_newick(nexus_con_tre):
         newick_line = nexus_con_tre.split('\n')[-3]
@@ -155,3 +155,18 @@ class MrBayesVolpiano():
         mb_file += "end;\n"
 
         return mb_file
+
+
+
+    def __rename_tree_nodes(tree_string, names):
+        def _sub_group(match):
+            index = int(match.group(2))-1
+            return f"{match.group(1)}{names[index]}{match.group(3)}"
+
+        tree_string = ''.join(tree_string.split('\n'))
+        
+        named_tree_string = re.sub(r'([\(,])([0-9]+)(\[)', 
+                                lambda m: _sub_group(m), 
+                                tree_string)
+        
+        return named_tree_string

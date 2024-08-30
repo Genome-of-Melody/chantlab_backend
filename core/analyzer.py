@@ -302,13 +302,14 @@ class Analyzer():
     def mrbayes_analyzis(cls, ids, alpianos, number_of_generations):
         _, _, _, _, newick_names = cls._get_alignment_data_from_db(ids) # ToDo take newick names/sources names from request instead
         mrbayes = MrBayesVolpiano(ngen = number_of_generations)
-        newick, nexus_con_tre, nexus_alignment, mb_script = mrbayes.run(alignment_names=newick_names, alpianos=alpianos)
+        newick, nexus_con_tre, nexus_alignment, mb_script, error_message = mrbayes.run(alignment_names=newick_names, alpianos=alpianos)
         
         result = {
-            'newick': cls._rename_tree_nodes(newick, newick_names),
+            'newick': newick,
             'mbScript': mb_script,
             'nexusAlignment': nexus_alignment,
-            'nexusConTre': nexus_con_tre
+            'nexusConTre': nexus_con_tre,
+            'error': error_message
         }
 
         return result

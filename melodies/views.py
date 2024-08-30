@@ -8,7 +8,7 @@ from rest_framework import status
 from melodies.models import Chant
 from melodies.serializers import ChantSerializer
 from rest_framework.decorators import api_view
-
+import logging
 from core.analyzer import Analyzer
 from core.chant_processor import ChantProcessor
 from core.exporter import Exporter
@@ -199,7 +199,17 @@ def chant_align_text(request):
 
 @api_view(['POST'])
 def mrbayes_volpiano(request):
-    ids = json.loads(request.POST['ids'])
-    alpianos = json.loads(request.POST['alpianos'])
-    number_of_generations = int(request.POST['numberOfGenerations'])
-    return JsonResponse(Analyzer.mrbayes_analyzis(ids, alpianos, number_of_generations))
+    try:
+        ids = json.loads(request.POST['ids'])
+        alpianos = json.loads(request.POST['alpianos'])
+        number_of_generations = int(request.POST['numberOfGenerations'])
+        return JsonResponse(Analyzer.mrbayes_analyzis(ids, alpianos, number_of_generations))
+    except Exception as e:
+        logging.error("mrbayes volpiano error: {}".format(e))
+        return JsonResponse({
+            'newick': "",
+            'mbScript': "",
+            'nexusAlignment': "",
+            'nexusConTre': "",
+            'error': e
+        })
