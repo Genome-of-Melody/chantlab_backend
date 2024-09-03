@@ -18,6 +18,11 @@ class MrBayesVolpiano():
         self.printfreq = printfreq
 
     def run(self, alignment_names, alpianos):
+        # normalize alignment names
+        normalized_names = []
+        for name in alignment_names:
+            normalized_names.append(name.replace(" ", "_").replace(",", ""))
+        alignment_names = normalized_names
         melodies = {}
         partitions = []
         init_paritions = True

@@ -183,13 +183,14 @@ def delete_dataset(request):
 def chant_align(request):
     ids = json.loads(request.POST['idsToAlign'])
     mode = request.POST['mode']
+    concatenated = json.loads(request.POST['concatenated'])
     
     if mode == "full":
-        return JsonResponse(Analyzer.alignment_pitches(ids))
+        return JsonResponse(Analyzer.alignment_pitches(ids, concatenated))
     elif mode == "intervals":
-        return JsonResponse(Analyzer.alignment_intervals(ids))
+        return JsonResponse(Analyzer.alignment_intervals(ids, concatenated))
     else:
-        return JsonResponse(Analyzer.alignment_syllables(ids))
+        return JsonResponse(Analyzer.alignment_syllables(ids, concatenated))
 
     
 @api_view(['POST'])
@@ -202,8 +203,9 @@ def mrbayes_volpiano(request):
     try:
         ids = json.loads(request.POST['ids'])
         alpianos = json.loads(request.POST['alpianos'])
+        sources = json.loads(request.POST['sources'])
         number_of_generations = int(request.POST['numberOfGenerations'])
-        return JsonResponse(Analyzer.mrbayes_analyzis(ids, alpianos, number_of_generations))
+        return JsonResponse(Analyzer.mrbayes_analyzis(ids, alpianos, number_of_generations, sources))
     except Exception as e:
         logging.error("mrbayes volpiano error: {}".format(e))
         return JsonResponse({
@@ -211,5 +213,5 @@ def mrbayes_volpiano(request):
             'mbScript': "",
             'nexusAlignment': "",
             'nexusConTre': "",
-            'error': e
+            'error': str(e)
         })
