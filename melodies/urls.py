@@ -14,5 +14,6 @@ urlpatterns = [
     url(r'^api/chants/create-dataset/$', views.create_dataset),
     url(r'^api/chants/add-to-dataset/$', views.add_to_dataset),
     url(r'^api/chants/delete-dataset/$', views.delete_dataset),
-    url(r'^api/chants/update-volpiano/$', views.update_volpiano)
+    url(r'^api/chants/update-volpiano/$', views.update_volpiano),
+    url(r'^api/chants/mrbayes-volpiano/$', views.mrbayes_volpiano),
 ]

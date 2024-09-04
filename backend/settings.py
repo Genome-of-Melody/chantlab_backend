@@ -145,5 +145,9 @@ CORS_ORIGIN_ALLOW_ALL = True
 #     'http://localhost:8000',
 # )
 
-# Directory with temporary files
+# Directory with mafft temporary files
 TEMP_DIR = 'mafft-temp'
+
+
+# Directory with mrbayes temporary files
+MRBAYES_TEMP_DIR = 'mrbayes-temp'

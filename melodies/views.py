@@ -8,8 +8,8 @@ from rest_framework import status
 from melodies.models import Chant
 from melodies.serializers import ChantSerializer
 from rest_framework.decorators import api_view
-
-from core.aligner import Aligner
+import logging
+from core.analyzer import Analyzer
 from core.chant_processor import ChantProcessor
 from core.exporter import Exporter
 from core.uploader import Uploader
@@ -183,16 +183,35 @@ def delete_dataset(request):
 def chant_align(request):
     ids = json.loads(request.POST['idsToAlign'])
     mode = request.POST['mode']
+    concatenated = json.loads(request.POST['concatenated'])
     
     if mode == "full":
-        return JsonResponse(Aligner.alignment_pitches(ids))
+        return JsonResponse(Analyzer.alignment_pitches(ids, concatenated))
     elif mode == "intervals":
-        return JsonResponse(Aligner.alignment_intervals(ids))
+        return JsonResponse(Analyzer.alignment_intervals(ids, concatenated))
     else:
-        return JsonResponse(Aligner.alignment_syllables(ids))
+        return JsonResponse(Analyzer.alignment_syllables(ids, concatenated))
 
     
 @api_view(['POST'])
 def chant_align_text(request):
     
     return JsonResponse({})
+
+@api_view(['POST'])
+def mrbayes_volpiano(request):
+    try:
+        ids = json.loads(request.POST['ids'])
+        alpianos = json.loads(request.POST['alpianos'])
+        sources = json.loads(request.POST['sources'])
+        number_of_generations = int(request.POST['numberOfGenerations'])
+        return JsonResponse(Analyzer.mrbayes_analyzis(ids, alpianos, number_of_generations, sources))
+    except Exception as e:
+        logging.error("mrbayes volpiano error: {}".format(e))
+        return JsonResponse({
+            'newick': "",
+            'mbScript': "",
+            'nexusAlignment': "",
+            'nexusConTre': "",
+            'error': str(e)
+        })

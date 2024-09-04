@@ -10,22 +10,24 @@ from melodies.models import Chant
 from core.chant_processor import ChantProcessor
 from core.interval_processor import IntervalProcessor
 from core.mafft import Mafft
-
+from core.mrbayes import MrBayesVolpiano
 from django.conf import settings
 
-class Aligner():
+class Analyzer():
     '''
     The Aligner class provides methods to compute chants' alignment
     '''
 
 
     @classmethod
-    def alignment_syllables(cls, ids):
+    def alignment_syllables(cls, ids, concatenated = False, add_empty_chant = False):
         '''
         Align chants using the word-based algorithm
         '''
-        sources, urls, texts, volpianos, names = cls._get_alignment_data_from_db(ids)
-
+        
+        sources, urls, texts, volpianos, names, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
+        if concatenated:
+           return cls.__concatenated_alignment(ids, siglums, cantus_ids, cls.alignment_syllables)
         error_sources = []
         error_ids = []
         success_sources = []
@@ -50,12 +52,16 @@ class Aligner():
                 error_sources.append(sources[i])
                 error_ids.append(i)
 
+        if add_empty_chant:
+            volpianos_to_align.append([])
+            texts_to_align.append([])
+
         aligned_volpianos = cls._get_volpiano_syllable_alignment(volpianos_to_align)
         volpiano_strings = [cls._get_volpiano_string_from_syllables(volpiano)
                                 for volpiano in aligned_volpianos]
 
         chants = []
-        for i in range(len(success_ids)):
+        for i in range(len(success_ids) + int(add_empty_chant)):
             text = cls._extend_text_to_volpiano(texts_to_align[i], aligned_volpianos[i])
             chants.append(cls._combine_volpiano_and_text(aligned_volpianos[i], text))
 
@@ -72,17 +78,21 @@ class Aligner():
                 'urls': success_urls
             },
             'guideTree': None,
-            'newickNamesDict': None
+            'newickNamesDict': None,
+            'alignmentMode': 'syllables'
         }
 
         return result
 
 
     @classmethod
-    def alignment_pitches(cls, ids):
+    def alignment_pitches(cls, ids, concatenated = False, add_empty_chant = False):
         '''
         Align chants using MSA on pitch values
         '''
+        _, _, _, _, _, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
+        if concatenated:
+           return cls.__concatenated_alignment(ids, siglums, cantus_ids, cls.alignment_pitches)
         # Dealing with alignment temporary files to avoid elementary race conditions.
         temp_dir = settings.TEMP_DIR
         if not os.path.isdir(temp_dir):
@@ -99,6 +109,7 @@ class Aligner():
         mafft = Mafft()
         mafft.set_input(mafft_inputs_path)
         mafft.add_option('--text')
+        mafft.add_option('--textmatrix resources/00_textmatrix_complete')
 
         # save errors
         error_sources = []
@@ -109,7 +120,7 @@ class Aligner():
         while not finished:
             finished = True
 
-            sources, urls, texts, volpianos, newick_names = cls._get_alignment_data_from_db(ids)
+            sources, urls, texts, volpianos, newick_names, _, _ = cls._get_alignment_data_from_db(ids)
             newick_names_dict = {name: id for id, name in zip(ids, newick_names)}
 
             ### DEBUG
@@ -137,8 +148,11 @@ class Aligner():
             melody_order = mafft.get_sequence_order()
 
             # retrieve guide tree
-            guide_tree = mafft.get_guide_tree()
-            guide_tree = cls._rename_tree_nodes(guide_tree, newick_names)
+            if not add_empty_chant:
+                guide_tree = mafft.get_guide_tree()
+                guide_tree = cls._rename_tree_nodes(guide_tree, newick_names)
+            else:
+                guide_tree = None
 
             # try aligning melody and text
             text_syllabified = [ChantProcessor.get_syllables_from_text(text) for text in texts]
@@ -158,6 +172,12 @@ class Aligner():
                     # finished = False
                     error_sources.append(sources[id])
                     error_ids.append(id)
+            # Add the empty chant at the end
+            if add_empty_chant and len(success_volpianos) > 0: 
+                empty_volpiano = re.sub(r'[a-zA-Z89]', '-', success_volpianos[0])
+                empty_chant = cls._get_volpiano_text_JSON(empty_volpiano, [])
+                chants.append(empty_chant)
+                success_volpianos.append(empty_volpiano)
 
             ids = next_iteration_ids
             cls._cleanup(mafft_inputs_path)   # Comment out this cleanup to retain MAFFT output files
@@ -176,17 +196,20 @@ class Aligner():
             },
             'guideTree': guide_tree,
             'newickNamesDict': newick_names_dict,
+            'alignmentMode': 'full'
         }
 
         return result
 
 
     @classmethod
-    def alignment_intervals(cls, ids):
+    def alignment_intervals(cls, ids, concatenated = False, add_empty_chant = False):
         '''
         Align chants using MSA on interval values
         '''
-
+        _, _, _, _, _, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
+        if concatenated:
+           return cls.__concatenated_alignment(ids, siglums, cantus_ids, cls.alignment_pitches)
         print('DEBUG: running MAFFT intervals with ids {}'.format(ids))
 
         temp_dir = settings.TEMP_DIR
@@ -204,6 +227,7 @@ class Aligner():
         mafft = Mafft()
         mafft.set_input(mafft_inputs_path)
         mafft.add_option('--text')
+        mafft.add_option('--textmatrix resources/00_textmatrix_complete')
 
         # save errors
         error_sources = []
@@ -214,7 +238,7 @@ class Aligner():
         while not finished:
             finished = True
 
-            sources, urls, texts, volpianos, newick_names = cls._get_alignment_data_from_db(ids)
+            sources, urls, texts, volpianos, newick_names, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
             newick_names_dict = {name: id for id, name in zip(ids, newick_names)}
 
             success_sources = []
@@ -244,11 +268,14 @@ class Aligner():
             print('DEBUG: Aligned melodies volpianos:')
             print(aligned_melodies_volpianos)
 
-            # retrieve guide tree
-            guide_tree = mafft.get_guide_tree()
-            # print('DEBUG: Intervals alignment, guide tree: {}').format(guide_tree)
-            guide_tree = cls._rename_tree_nodes(guide_tree, newick_names)
-            # print('DEBUG: Intervals alignment, named guide tree: {}').format(guide_tree)
+            if not add_empty_chant:
+                # retrieve guide tree
+                guide_tree = mafft.get_guide_tree()
+                # print('DEBUG: Intervals alignment, guide tree: {}').format(guide_tree)
+                guide_tree = cls._rename_tree_nodes(guide_tree, newick_names)
+                # print('DEBUG: Intervals alignment, named guide tree: {}').format(guide_tree)
+            else:
+                guide_tree = None
 
             # try aligning melody and text
             text_syllabified = [ChantProcessor.get_syllables_from_text(text) for text in texts]
@@ -268,7 +295,12 @@ class Aligner():
                     # finished = False
                     error_sources.append(sources[id])
                     error_ids.append(id)
-
+            # Add the empty chant at the end
+            if add_empty_chant and len(success_volpianos) > 0: 
+                empty_volpiano = re.sub(r'[a-zA-Z89]', '-', success_volpianos[0])
+                empty_chant = cls._get_volpiano_text_JSON(empty_volpiano, [])
+                chants.append(empty_chant)
+                success_volpianos.append(empty_volpiano)
             ids = next_iteration_ids
             cls._cleanup(mafft_inputs_path)
 
@@ -288,6 +320,23 @@ class Aligner():
             },
             'guideTree': guide_tree,
             'newickNamesDict': newick_names_dict,
+            'alignmentMode': 'intervals'
+        }
+
+        return result
+
+
+    @classmethod
+    def mrbayes_analyzis(cls, ids, alpianos, number_of_generations, sources):
+        mrbayes = MrBayesVolpiano(ngen = number_of_generations)
+        newick, nexus_con_tre, nexus_alignment, mb_script, error_message = mrbayes.run(alignment_names=sources, alpianos=alpianos)
+        
+        result = {
+            'newick': newick,
+            'mbScript': mb_script,
+            'nexusAlignment': nexus_alignment,
+            'nexusConTre': nexus_con_tre,
+            'error': error_message
         }
 
         return result
@@ -464,6 +513,8 @@ class Aligner():
         texts = []
         volpianos = []
         newick_names = []
+        siglums = []
+        cantus_ids = []
 
         for id in ids:
             try:
@@ -473,12 +524,15 @@ class Aligner():
                 position = chant.position if chant.position else ""
                 folio = chant.folio if chant.folio else ""
                 source = siglum + ", " + folio + ", " + position
+                cantus_id = chant.cantus_id if chant.cantus_id else ""
                 sources.append(source)
 
                 urls.append(chant.drupal_path)
 
                 newick_name = ChantProcessor.build_chant_newick_name(chant)
                 newick_names.append(newick_name)
+                siglums.append(siglum)
+                cantus_ids.append(cantus_id)
             except Chant.DoesNotExist:
                 return JsonResponse({'message': 'Chant with id ' + str(id) + ' does not exist'},
                     status=status.HTTP_404_NOT_FOUND)
@@ -486,7 +540,103 @@ class Aligner():
             texts.append(chant.full_text)
             volpianos.append(chant.volpiano)
 
-        return sources, urls, texts, volpianos, newick_names
+        return sources, urls, texts, volpianos, newick_names, siglums, cantus_ids
+
+
+    @classmethod
+    def __concatenated_alignment(cls, ids, siglums, cantus_ids, alignment_funct):
+            # Prepare information for concatenation
+            unique_sources = list(set(siglums))
+            source_alignment_count = {}
+            for source in unique_sources:
+                source_alignment_count[source] = 0
+            id2source_map = {}
+            for id, siglum in zip(ids, siglums):
+                id2source_map[id] = siglum
+            # Split chants by their cantus ids
+            cantus_subids = {}
+            for id, cid in zip(ids, cantus_ids):
+                if not cid in cantus_subids:
+                    cantus_subids[cid] = []
+                cantus_subids[cid].append(id)
+            # Collect all alignments regarding corpus ids
+            final_chants = []
+            final_volpiano_strings = []
+            for _ in unique_sources:
+                final_chants.append([])
+                final_volpiano_strings.append("")
+            final_error_sources = []
+            final_error_ids = []
+            final_success_sources = []
+            final_success_ids = []
+            final_success_urls = []
+            alignment_mode = ""
+            # Align all cantus ids separatly
+            for cantus_id in cantus_subids:
+                subids = cantus_subids[cantus_id]
+                sub_result = alignment_funct(subids, concatenated = False, add_empty_chant = True)
+                # Collect successes and errors
+                for id in sub_result["errors"]["ids"]:
+                    final_error_ids.append(id)
+                for source in sub_result["errors"]["sources"]:
+                    final_error_sources.append(source)
+                for id in sub_result["success"]["ids"]:
+                    final_success_ids.append(id)
+                for source in sub_result["success"]["sources"]:
+                    final_success_sources.append(source)
+                for url in sub_result["success"]["urls"]:
+                    final_success_urls.append(url)
+                if len(sub_result["success"]["ids"]) == 0:
+                    continue
+                # Get alignment length from alpiano
+                volpiano_length = len(sub_result["success"]["volpianos"][0])
+                # Create map to map sources with successful ids
+                success_ids_map = {}
+                for i, id in enumerate(sub_result["success"]["ids"]):
+                    success_ids_map[id2source_map[id]] = i
+                    assert len(sub_result["success"]["volpianos"][i]) == volpiano_length
+                # Collect parsed chants and alpianos
+                for i, source in enumerate(unique_sources):
+                    if source in success_ids_map:
+                        final_chants[i] += sub_result["chants"][success_ids_map[source]]
+                        if len(final_volpiano_strings[i]) > 0:
+                            final_volpiano_strings[i] += "#"
+                        final_volpiano_strings[i] += sub_result["success"]["volpianos"][success_ids_map[source]]
+                        source_alignment_count[source] += 1
+                    else:
+                        final_chants[i] += sub_result["chants"][-1]
+                        if len(final_volpiano_strings[i]) > 0:
+                            final_volpiano_strings[i] += "#"
+                        final_volpiano_strings[i] += sub_result["success"]["volpianos"][-1]
+                alignment_mode = sub_result["alignmentMode"]
+            # Remove sources that don't contain alignments
+            filtered_volpianos = []
+            filtered_chants = []
+            error_sources = []
+            sources = []
+            for i, source in enumerate(unique_sources):
+                if source_alignment_count[source] > 0:
+                    filtered_chants.append(final_chants[i])
+                    filtered_volpianos.append(final_volpiano_strings[i])
+                    sources.append(source)
+                else:
+                    error_sources.append(source)
+            return {
+                'chants': filtered_chants,
+                'errors': {
+                    "sources": error_sources,
+                    "ids": final_error_ids
+                }, 
+                'success': {
+                    'sources': sources,
+                    'ids': final_success_ids[:len(filtered_volpianos)], # ToDo design more suitable format and return all successful ids
+                    'volpianos': filtered_volpianos,
+                    'urls': final_success_urls[:len(filtered_volpianos)] # ToDo design more suitable format and return all urls
+                },
+                'guideTree': None, # ToDo return all guide trees, but first figure it out how
+                'newickNamesDict': None,
+                'alignmentMode': alignment_mode
+            }
 
     @classmethod
     def _rename_tree_nodes(cls, tree_string, names):
