@@ -8,6 +8,20 @@ import random
 import string
 import logging
 
+def mrbayes_analyzis(ids, alpianos, number_of_generations, sources):
+    mrbayes = MrBayesVolpiano(ngen = number_of_generations)
+    newick, nexus_con_tre, nexus_alignment, mb_script, error_message = mrbayes.run(alignment_names=sources, alpianos=alpianos)
+    
+    result = {
+        'newick': newick,
+        'mbScript': mb_script,
+        'nexusAlignment': nexus_alignment,
+        'nexusConTre': nexus_con_tre,
+        'error': error_message
+    }
+
+    return result
+
 class MrBayesVolpiano():
 
     def __init__(self, mcmc_nruns = 4, ngen = 4000000, nchains=8, samplefreq=1000, printfreq=1000):
@@ -21,7 +35,7 @@ class MrBayesVolpiano():
         # normalize alignment names
         normalized_names = []
         for name in alignment_names:
-            normalized_names.append(name.replace(" ", "_").replace(",", ""))
+            normalized_names.append(MrBayesVolpiano.__siglum_to_fasta_header_name(name))
         alignment_names = normalized_names
         melodies = {}
         partitions = []
@@ -175,3 +189,25 @@ class MrBayesVolpiano():
                                 tree_string)
         
         return named_tree_string
+
+
+    def __siglum_to_fasta_header_name(siglum):
+        '''Formats a siglum to a string that can be used as a FASTA header.
+        This means discarding all special characters, and changing all whitespace to underscores,
+        to make compatibility with any FASTA-reading software more likely.
+        '''
+        siglum = siglum.replace('.', '_')  # Dots often separate elements of a numbering system
+        siglum = siglum.replace(',', '_')  # Dots often separate elements of a numbering system
+        siglum = siglum.replace('/', '_')  # Slashes as well.
+        siglum = siglum.replace(':', '')   # Semicolons are usually only separators between RISM ID part and rest of siglum.
+        siglum = siglum.replace('(', '')   # Parentheses are not important separators
+        siglum = siglum.replace(')', '')
+        siglum = siglum.replace('<', '')
+        siglum = siglum.replace('>', '')
+        siglum = siglum.replace('"', '')
+        siglum = siglum.replace("'", "")
+        siglum = siglum.replace(";", "")
+        siglum = siglum.replace('-', '_')  # Unfortunately, dashes from RISM sigla like CZ-Pu can also be risky.
+
+        siglum = siglum.replace(' ', '_')
+        return siglum

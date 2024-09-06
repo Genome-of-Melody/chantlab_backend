@@ -10,10 +10,12 @@ from melodies.models import Chant
 from core.chant_processor import ChantProcessor
 from core.interval_processor import IntervalProcessor
 from core.mafft import Mafft
-from core.mrbayes import MrBayesVolpiano
 from django.conf import settings
 
-class Analyzer():
+class Aligner():
+    '''
+    The Aligner class provides methods to compute chants' alignment
+    '''
     '''
     The Aligner class provides methods to compute chants' alignment
     '''
@@ -120,7 +122,7 @@ class Analyzer():
         while not finished:
             finished = True
 
-            sources, urls, texts, volpianos, newick_names, _, _ = cls._get_alignment_data_from_db(ids)
+            sources, urls, _, volpianos, newick_names, _, _ = cls._get_alignment_data_from_db(ids)
             newick_names_dict = {name: id for id, name in zip(ids, newick_names)}
 
             ### DEBUG
@@ -155,12 +157,12 @@ class Analyzer():
                 guide_tree = None
 
             # try aligning melody and text
-            text_syllabified = [ChantProcessor.get_syllables_from_text(text) for text in texts]
+            # text_syllabified = [ChantProcessor.get_syllables_from_text(text) for text in texts] - removed text from mafft alignment
             chants = []
             next_iteration_ids = []
             for i, id in enumerate(melody_order):
                 try:
-                    chants.append(cls._get_volpiano_text_JSON(aligned_melodies[i], text_syllabified[id]))
+                    chants.append(cls._get_volpiano_text_JSON(aligned_melodies[i], [])) # text_syllabified[id])) - removed text from mafft alignment
                     success_sources.append(sources[id])
                     success_ids.append(ids[id])
                     success_volpianos.append(aligned_melodies[i])
@@ -238,7 +240,7 @@ class Analyzer():
         while not finished:
             finished = True
 
-            sources, urls, texts, volpianos, newick_names, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
+            sources, urls, _, volpianos, newick_names, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
             newick_names_dict = {name: id for id, name in zip(ids, newick_names)}
 
             success_sources = []
@@ -278,12 +280,12 @@ class Analyzer():
                 guide_tree = None
 
             # try aligning melody and text
-            text_syllabified = [ChantProcessor.get_syllables_from_text(text) for text in texts]
+            # text_syllabified = [ChantProcessor.get_syllables_from_text(text) for text in texts] - removed text from mafft alignment
             chants = []
             next_iteration_ids = []
             for i, id in enumerate(sequence_order):
                 try:
-                    chants.append(cls._get_volpiano_text_JSON(aligned_melodies_volpianos[i], text_syllabified[id]))
+                    chants.append(cls._get_volpiano_text_JSON(aligned_melodies_volpianos[i], [])) # text_syllabified[id])) - removed text from mafft alignment
                     success_sources.append(sources[id])
                     success_ids.append(ids[id])
                     success_volpianos.append(aligned_melodies_intervals[i])
@@ -321,22 +323,6 @@ class Analyzer():
             'guideTree': guide_tree,
             'newickNamesDict': newick_names_dict,
             'alignmentMode': 'intervals'
-        }
-
-        return result
-
-
-    @classmethod
-    def mrbayes_analyzis(cls, ids, alpianos, number_of_generations, sources):
-        mrbayes = MrBayesVolpiano(ngen = number_of_generations)
-        newick, nexus_con_tre, nexus_alignment, mb_script, error_message = mrbayes.run(alignment_names=sources, alpianos=alpianos)
-        
-        result = {
-            'newick': newick,
-            'mbScript': mb_script,
-            'nexusAlignment': nexus_alignment,
-            'nexusConTre': nexus_con_tre,
-            'error': error_message
         }
 
         return result
@@ -474,6 +460,27 @@ class Analyzer():
 
         alpiano_words = ChantProcessor.get_syllables_from_alpiano(alpiano)
         
+        if len(alpiano_words) == 0:
+            return [[{
+                'type': 'clef',
+                'volpiano': ['1'],
+                'text': ''
+            }, {
+                'type': 'word-space',
+                'volpiano': ['-'],
+                'text': ''
+            }],
+            [{
+                'type': 'syllable',
+                'volpiano': alpiano.split(),
+                'text': ''
+            }],
+            [{
+                'type': 'end-sequence',
+                'volpiano': ['4'],
+                'text': ''
+            }]]
+
         if not ChantProcessor.check_volpiano_text_compatibility(alpiano_words, text_words):
             # This is a problem. Often a melody has a doxology without text at the end,
             # and therefore we get a failure unnecessarily. There should be a solution

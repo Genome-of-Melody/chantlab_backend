@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+from core import pycantus # TODO replace by pycantus library once it will be public
 
 MAFFT_PATH = '/Users/hajicj/CES_TF/mafft/mafft-mac/mafftdir/bin/mafft'
 if not os.path.isfile(MAFFT_PATH):
@@ -51,8 +52,8 @@ class Mafft():
         if not self._input:
             raise RuntimeError("Input file must be defined"
                                "before adding a chant")
-                               
-        processed = _preprocess_volpiano(volpiano)
+
+        processed = pycantus.clean_volpiano(volpiano, keep_boundaries=False, keep_bars=False)
         with open(self._input, 'a') as file:
 
             if name is None:
@@ -178,13 +179,3 @@ class Mafft():
         self._counter = 0
         self._aligned_sequences = None
         self._sequence_idxs = None
-
-
-def _preprocess_volpiano(volpiano):
-    res = volpiano.replace("---", "~")      # word separator
-    res = res.replace("--", "|")            # syllable separator
-    res = res.replace("-", "")              # remove all other -s
-    return res
-
-
-
