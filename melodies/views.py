@@ -9,7 +9,8 @@ from melodies.models import Chant
 from melodies.serializers import ChantSerializer
 from rest_framework.decorators import api_view
 import logging
-from core.analyzer import Analyzer
+from core.aligner import Aligner
+from core import mrbayes
 from core.chant_processor import ChantProcessor
 from core.exporter import Exporter
 from core.uploader import Uploader
@@ -186,11 +187,11 @@ def chant_align(request):
     concatenated = json.loads(request.POST['concatenated'])
     
     if mode == "full":
-        return JsonResponse(Analyzer.alignment_pitches(ids, concatenated))
+        return JsonResponse(Aligner.alignment_pitches(ids, concatenated))
     elif mode == "intervals":
-        return JsonResponse(Analyzer.alignment_intervals(ids, concatenated))
+        return JsonResponse(Aligner.alignment_intervals(ids, concatenated))
     else:
-        return JsonResponse(Analyzer.alignment_syllables(ids, concatenated))
+        return JsonResponse(Aligner.alignment_syllables(ids, concatenated))
 
     
 @api_view(['POST'])
@@ -205,7 +206,7 @@ def mrbayes_volpiano(request):
         alpianos = json.loads(request.POST['alpianos'])
         sources = json.loads(request.POST['sources'])
         number_of_generations = int(request.POST['numberOfGenerations'])
-        return JsonResponse(Analyzer.mrbayes_analyzis(ids, alpianos, number_of_generations, sources))
+        return JsonResponse(mrbayes.mrbayes_analyzis(ids, alpianos, number_of_generations, sources))
     except Exception as e:
         logging.error("mrbayes volpiano error: {}".format(e))
         return JsonResponse({

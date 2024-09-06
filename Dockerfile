@@ -25,11 +25,10 @@ RUN apt update && apt install -y git
 # Install all requirements
 COPY ./requirements.txt .
 RUN /bin/bash -c "source activate chantlab && pip install -r requirements.txt"
-RUN git clone --depth=1 https://github.com/NBISweden/MrBayes.git /opt/mrbayes
+RUN git clone --depth=1 https://github.com/Genome-of-Melody/mrbayes_volpiano.git /opt/mrbayes
 WORKDIR /opt/mrbayes
 RUN ./configure
 RUN make && make install
-ENV PATH="/usr/local/bin:$PATH"
 WORKDIR /
 
 
