@@ -29,7 +29,7 @@ class Aligner():
         
         sources, urls, texts, volpianos, names, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
         if concatenated:
-           return cls.__concatenated_alignment(ids, siglums, cantus_ids, cls.alignment_syllables)
+           return cls._concatenated_alignment(ids, siglums, cantus_ids, cls.alignment_syllables)
         error_sources = []
         error_ids = []
         success_sources = []
@@ -94,7 +94,7 @@ class Aligner():
         '''
         _, _, _, _, _, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
         if concatenated:
-           return cls.__concatenated_alignment(ids, siglums, cantus_ids, cls.alignment_pitches)
+           return cls._concatenated_alignment(ids, siglums, cantus_ids, cls.alignment_pitches)
         # Dealing with alignment temporary files to avoid elementary race conditions.
         temp_dir = settings.TEMP_DIR
         if not os.path.isdir(temp_dir):
@@ -211,7 +211,7 @@ class Aligner():
         '''
         _, _, _, _, _, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
         if concatenated:
-           return cls.__concatenated_alignment(ids, siglums, cantus_ids, cls.alignment_pitches)
+           return cls._concatenated_alignment(ids, siglums, cantus_ids, cls.alignment_pitches)
         print('DEBUG: running MAFFT intervals with ids {}'.format(ids))
 
         temp_dir = settings.TEMP_DIR
@@ -551,7 +551,9 @@ class Aligner():
 
 
     @classmethod
-    def __concatenated_alignment(cls, ids, siglums, cantus_ids, alignment_funct):
+    def _concatenated_alignment(cls, ids, siglums, cantus_ids, alignment_funct):
+            final_error_sources = []
+            final_error_ids = []
             # Prepare information for concatenation
             unique_sources = list(set(siglums))
             source_alignment_count = {}
@@ -562,18 +564,25 @@ class Aligner():
                 id2source_map[id] = siglum
             # Split chants by their cantus ids
             cantus_subids = {}
+            used_sources = {}
             for id, cid in zip(ids, cantus_ids):
                 if not cid in cantus_subids:
                     cantus_subids[cid] = []
-                cantus_subids[cid].append(id)
-            # Collect all alignments regarding corpus ids
+                # check the cantus id is not duplicated for the same siglum
+                if not cid in used_sources:
+                    used_sources[cid] = set()
+                if id2source_map[id] in used_sources[cid]:
+                    final_error_sources.append(id2source_map[id])
+                    final_error_ids.append(id)
+                else:
+                    used_sources[cid].add(id2source_map[id])
+                    cantus_subids[cid].append(id)
+            # Collect all alignments by corpus ids
             final_chants = []
             final_volpiano_strings = []
             for _ in unique_sources:
                 final_chants.append([])
                 final_volpiano_strings.append("")
-            final_error_sources = []
-            final_error_ids = []
             final_success_sources = []
             final_success_ids = []
             final_success_urls = []
@@ -619,19 +628,16 @@ class Aligner():
             # Remove sources that don't contain alignments
             filtered_volpianos = []
             filtered_chants = []
-            error_sources = []
             sources = []
             for i, source in enumerate(unique_sources):
                 if source_alignment_count[source] > 0:
                     filtered_chants.append(final_chants[i])
                     filtered_volpianos.append(final_volpiano_strings[i])
                     sources.append(source)
-                else:
-                    error_sources.append(source)
             return {
                 'chants': filtered_chants,
                 'errors': {
-                    "sources": error_sources,
+                    "sources": final_error_sources,
                     "ids": final_error_ids
                 }, 
                 'success': {
