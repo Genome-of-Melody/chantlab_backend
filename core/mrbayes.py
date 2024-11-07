@@ -199,12 +199,20 @@ class MrBayesVolpiano():
         siglum = siglum.replace('.', '_')  # Dots often separate elements of a numbering system
         siglum = siglum.replace(',', '_')  # Dots often separate elements of a numbering system
         siglum = siglum.replace('/', '_')  # Slashes as well.
+        siglum = siglum.replace('\\', '_')
         siglum = siglum.replace(':', '')   # Semicolons are usually only separators between RISM ID part and rest of siglum.
         siglum = siglum.replace('(', '')   # Parentheses are not important separators
         siglum = siglum.replace(')', '')
         siglum = siglum.replace('<', '')
         siglum = siglum.replace('>', '')
         siglum = siglum.replace('"', '')
+        siglum = siglum.replace('*', '')
+        siglum = siglum.replace('#', '')
+        siglum = siglum.replace('&', '')
+        siglum = siglum.replace('%', '')
+        siglum = siglum.replace('@', '')
+        siglum = siglum.replace('!', '')
+        siglum = siglum.replace('=', '')
         siglum = siglum.replace("'", "")
         siglum = siglum.replace(";", "")
         siglum = siglum.replace('-', '_')  # Unfortunately, dashes from RISM sigla like CZ-Pu can also be risky.
