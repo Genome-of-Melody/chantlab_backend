@@ -35,7 +35,7 @@ class MrBayesVolpiano():
         # normalize alignment names
         normalized_names = []
         for name in alignment_names:
-            normalized_names.append(MrBayesVolpiano.__siglum_to_fasta_header_name(name))
+            normalized_names.append(MrBayesVolpiano._siglum_to_fasta_header_name(name))
         alignment_names = normalized_names
         melodies = {}
         partitions = []
@@ -45,6 +45,7 @@ class MrBayesVolpiano():
             aligned_sequence = aligned_sequence.replace("~", "-")
             aligned_sequence = aligned_sequence.replace("1", "-")
             aligned_sequence = aligned_sequence.replace("4", "-")
+            aligned_sequence = MrBayesVolpiano._filter_not_supported_symbols(aligned_sequence)
             subsequences = aligned_sequence.split("#") # chant splitter
             if init_paritions:
                 partitions = [0]
@@ -63,8 +64,8 @@ class MrBayesVolpiano():
             init_paritions = False
             melodies[source_name] = ''.join(subsequences)
 
-        nexus_content = MrBayesVolpiano.__generate_nexus(sequences=melodies, ntax=len(melodies), nchar=partitions[-1])
-        mb_content = self.__generate_mb(partitions=partitions)
+        nexus_content = MrBayesVolpiano._generate_nexus(sequences=melodies, ntax=len(melodies), nchar=partitions[-1])
+        mb_content = self._generate_mb(partitions=partitions)
 
 
         # Create a directory in the 'mrbayes-temp' folder with a randomly generated ID
@@ -88,7 +89,7 @@ class MrBayesVolpiano():
             con_tre_file_path = os.path.join(temp_dir, 'chantlab.nexus.con.tre')
             with open(con_tre_file_path, 'r') as con_tre_file:
                 nexus_con_tre = con_tre_file.read()
-            newick = MrBayesVolpiano.__extract_newick(nexus_con_tre)
+            newick = MrBayesVolpiano._extract_newick(nexus_con_tre)
         except:
             logging.error("Cannot find chantlab.nexus.con.tre file - check the chantlab.log for more information.")
             con_tre_file_path = os.path.join(temp_dir, 'chantlab.log')
@@ -100,15 +101,15 @@ class MrBayesVolpiano():
         shutil.rmtree(temp_dir)
 
 
-        return MrBayesVolpiano.__rename_tree_nodes(newick, alignment_names), nexus_con_tre, nexus_content, mb_content, ""
+        return MrBayesVolpiano._rename_tree_nodes(newick, alignment_names), nexus_con_tre, nexus_content, mb_content, ""
 
-    def __extract_newick(nexus_con_tre):
+    def _extract_newick(nexus_con_tre):
         newick_line = nexus_con_tre.split('\n')[-3]
         offset = len(newick_line.split('(')[0])
         return newick_line[offset:-1]
 
 
-    def __generate_nexus(sequences, ntax, nchar):
+    def _generate_nexus(sequences, ntax, nchar):
         nexus_content = ""
         nexus_content += "#NEXUS\n"
         nexus_content += "BEGIN DATA;\n"
@@ -122,7 +123,7 @@ class MrBayesVolpiano():
         nexus_content += "end;"
         return nexus_content
 
-    def __generate_mb(self, partitions):
+    def _generate_mb(self, partitions):
         mb_file = ""
         mb_file += "begin mrbayes;\n"
         mb_file += "[Script documentation carried out using comments]\n"
@@ -177,7 +178,7 @@ class MrBayesVolpiano():
 
 
 
-    def __rename_tree_nodes(tree_string, names):
+    def _rename_tree_nodes(tree_string, names):
         def _sub_group(match):
             index = int(match.group(2))-1
             return f"{match.group(1)}{names[index]}{match.group(3)}"
@@ -191,7 +192,7 @@ class MrBayesVolpiano():
         return named_tree_string
 
 
-    def __siglum_to_fasta_header_name(siglum):
+    def _siglum_to_fasta_header_name(siglum):
         '''Formats a siglum to a string that can be used as a FASTA header.
         This means discarding all special characters, and changing all whitespace to underscores,
         to make compatibility with any FASTA-reading software more likely.
@@ -219,3 +220,13 @@ class MrBayesVolpiano():
 
         siglum = siglum.replace(' ', '_')
         return siglum
+
+
+    def _filter_not_supported_symbols(volpiano_melody):
+        filtered_melody = ""
+        for c in volpiano_melody:
+            if not c in "abcdefghjklmnopqrsyYiIzZ)ABCDEFGHJKLMNOPQRS-#": # symbol '#' is a chant separator, not part of the volpiano
+                filtered_melody += "-"
+            else:
+                filtered_melody += c
+        return filtered_melody
