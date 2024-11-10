@@ -63,7 +63,117 @@ class Mafft():
             file.write(processed + "\n")
             self._counter += 1
 
-    
+    def _special_symbols_need_to_be_added(indices, id, boundaries_index, to_add):
+        for pause_index in indices[id]:
+            if boundaries_index > pause_index:
+                to_add[id] += 1
+            else:
+                break
+
+    def _add_special_symbols(indices, id, boundaries_index, melody, special_symbol):
+        while len(indices[id]) > 0 and boundaries_index > indices[id][0]:
+            melody += special_symbol
+            indices[id] = indices[id][1:]
+        return melody
+
+    def add_text_boundaries(mafft_aligned_melodies, volpianos, melody_order, keep_liquescents = True):
+        if len(mafft_aligned_melodies) == 0:
+            return []
+        if not keep_liquescents:
+            mafft_aligned_melodies = [mel.lower().replace("(", "8").replace(")", "9") for mel in mafft_aligned_melodies]
+            volpianos = [
+                ''.join(
+                    (char.lower() if char not in {'Y', 'I', 'Z', 'X'} else char)
+                    .replace("(", "8")
+                    .replace(")", "9")
+                    for char in mel
+                )
+                for mel in volpianos
+            ]
+        
+        # remove all flats
+        mafft_aligned_melodies = [mel.replace("y", "b").replace("Y", "B").replace("i", "j").replace("I", "J").replace("x", "m").replace("X", "M").replace("z", "q").replace("Z", "Q")
+                                  for mel in mafft_aligned_melodies]
+
+        melodies_with_boundaries = []
+        word_indices = []
+        syllable_indices = []
+        pause_indices = []
+        bb_indices = []
+        bb1_indices = []
+        eb1_indices = []
+        bb2_indices = []
+        notbb_indices = []
+        notbb1_indices = []
+        noteb1_indices = []
+        notbb2_indices = []
+        special_symbols = ["7", "|", "~", "y", "i", "x", "z", "Y", "I", "X", "Z"]
+        indices = {
+            "7": pause_indices, "|" : syllable_indices, "~": word_indices, 
+            "y": bb_indices, "i": bb1_indices, "x": eb1_indices, "z": bb2_indices, 
+            "Y": notbb_indices, "I": notbb1_indices, "X": noteb1_indices, "Z": notbb2_indices
+        }
+        for volpiano in volpianos:
+            boundaries = volpiano.replace("---", "~")
+            boundaries = boundaries.replace("--", "|")
+            boundaries = boundaries.replace("-", "")
+            # Make sure the first symbol is a 'new word' symbol
+            if not (len(boundaries) >= 1 and boundaries[0] == "1"):
+                boundaries = "1" + boundaries
+            if not (len(boundaries) >= 2 and boundaries[1] == "~"):
+                if len(boundaries) >= 2 and boundaries[1] == "|": # two dashes in volpiano instead of three looks more like a mistake
+                    boundaries = boundaries[0] + "~" + boundaries[2:]
+                else:
+                    boundaries = boundaries[0] + "~" + boundaries[1:]
+            # Make sure the last symbol is a 'new word' symbol
+            if not (len(boundaries) >= 1 and (boundaries[-1] == "4" or boundaries[-1] == "3")):
+                boundaries = boundaries + "4"
+            if not (len(boundaries) >= 2 and boundaries[-2] == "~"):
+                if len(boundaries) >= 2 and boundaries[-2] == "|": # two dashes in volpiano instead of three looks more like a mistake
+                    boundaries = boundaries[:-2] + "~" + boundaries[-1]
+                else:
+                    boundaries = boundaries[:-1] + "~" + boundaries[1:]
+
+            melodies_with_boundaries.append(boundaries)
+        
+            word_indices.append([index for index, char in enumerate(boundaries) if char == '~'])
+            syllable_indices.append([index for index, char in enumerate(boundaries) if char == '|'])
+            pause_indices.append([index for index, char in enumerate(boundaries) if char == '7'])
+            bb_indices.append([index for index, char in enumerate(boundaries) if char == 'y'])
+            bb1_indices.append([index for index, char in enumerate(boundaries) if char == 'i'])
+            eb1_indices.append([index for index, char in enumerate(boundaries) if char == 'x'])
+            bb2_indices.append([index for index, char in enumerate(boundaries) if char == 'z'])
+            notbb_indices.append([index for index, char in enumerate(boundaries) if char == 'Y'])
+            notbb1_indices.append([index for index, char in enumerate(boundaries) if char == 'I'])
+            noteb1_indices.append([index for index, char in enumerate(boundaries) if char == 'X'])
+            notbb2_indices.append([index for index, char in enumerate(boundaries) if char == 'Z'])
+
+        boundaries_indices = [-1]*len(volpianos)
+        aligned_melodies_with_text_boundaries = [""]*len(mafft_aligned_melodies)
+        for aligned_melody_index in range(len(mafft_aligned_melodies[0]) + 1):
+            to_add = [0]*len(volpianos)
+            for i, id in enumerate(melody_order):  
+                c = mafft_aligned_melodies[i][aligned_melody_index] if len(mafft_aligned_melodies[i]) > aligned_melody_index else None
+                if c != "-":
+                    boundaries_index = melodies_with_boundaries[id].find(c, boundaries_indices[id]+1) if not c is None else len(melodies_with_boundaries[id])
+                    for special_symbol in special_symbols:
+                        Mafft._special_symbols_need_to_be_added(indices[special_symbol], id, boundaries_index, to_add)
+
+            overall_to_add = max(to_add)
+            for i, id in enumerate(melody_order):  
+                c = mafft_aligned_melodies[i][aligned_melody_index] if len(mafft_aligned_melodies[i]) > aligned_melody_index else None 
+                aligned_melodies_with_text_boundaries[i] += "-"*(overall_to_add-to_add[id])
+                if c != "-":
+                    boundaries_index = melodies_with_boundaries[id].find(c, boundaries_indices[id]+1) if not c is None else len(melodies_with_boundaries[id])
+                    for special_symbol in special_symbols:
+                        aligned_melodies_with_text_boundaries[i] = Mafft._add_special_symbols(
+                            indices[special_symbol], id, boundaries_index, aligned_melodies_with_text_boundaries[i], special_symbol
+                        )
+                    boundaries_indices[id] = boundaries_index
+                aligned_melodies_with_text_boundaries[i] += c if not c is None else ""
+        return aligned_melodies_with_text_boundaries
+
+
     def add_text(self, text):
         if not self._input:
             raise RuntimeError("Input file must be defined"

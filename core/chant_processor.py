@@ -22,17 +22,11 @@ class ChantProcessor():
         # syllables = [syllabify(word) for word in words]
         return syllables
 
-
     @classmethod
     def get_syllables_from_alpiano(cls, volpiano):
         """
-        Divides a string of volpiano notation with separator signs
-        into words and syllables.
-
-        @returns: list of words, where each word is a list of syllables
         """
         volpiano_words = volpiano.split('~')    # divides volpiano into words
-        volpiano_words = volpiano_words[1:-1]   # discard 1st (clef) and last (bar) words
         volpiano_syllables = [volpiano_word.split('|') for volpiano_word in volpiano_words]
 
         return volpiano_syllables
@@ -60,7 +54,7 @@ class ChantProcessor():
         return len(volpiano_words) == len(text_words)
 
     @classmethod
-    def try_fixing_volpiano_and_text_compatibility(cls, alpiano_words, text_words):
+    def pad_doxology_text(cls, alpiano_words, text_words):
         '''Attempts to apply fixes to some trivial incompatibilities between text and volpiano.
 
         - Tries to pad the text so that it has the same number of words as the volpiano.
@@ -77,6 +71,18 @@ class ChantProcessor():
                                 for al_word in extra_alpiano_words]
             text_words.extend(dummy_text_words)
         return alpiano_words, text_words
+    
+    @classmethod
+    def generate_placehoder_text(cls, alpiano_words):
+        '''
+        :param alpiano_words:
+        :param text_words:
+        :return:
+        '''
+        _DUMMY_SYLLABLE_TEXT = '#'
+        dummy_text_words = [[_DUMMY_SYLLABLE_TEXT for _ in al_word]
+                            for al_word in alpiano_words]
+        return dummy_text_words
 
     @classmethod
     def get_stressed_syllables(cls, text):
@@ -127,3 +133,40 @@ class ChantProcessor():
         siglum = chant.siglum if chant.siglum else '[nosource]'
         siglum = '_'.join(siglum.replace('(', '').replace(')', '').split())
         return '{}__{}'.format(incipit_name, siglum)
+
+
+    @staticmethod
+    def process_volpiano_flats(volpiano):
+        y = False # bb
+        i = False # bb'
+        x = False # eb'
+        z = False # bb''
+        processed_volpiano = ""
+        for c in volpiano:
+            if c == "y":
+                y = True
+            elif c == "Y": 
+                y = False
+            elif c == "i":
+                i = True
+            elif c == "I":
+                i = False
+            elif c == "x":
+                x = True
+            elif c == "X": 
+                x = False
+            elif c == "z":
+                z = True
+            elif c == "Z": 
+                z = False
+            elif c == "b" and y:
+                processed_volpiano += "y"
+            elif c == "j" and i:
+                processed_volpiano += "i"
+            elif c == "m" and x:
+                processed_volpiano += "x"
+            elif c == "q" and z:
+                processed_volpiano += "z"
+            else:
+                processed_volpiano += c
+        return processed_volpiano

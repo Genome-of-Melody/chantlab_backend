@@ -1,7 +1,7 @@
 import os
 import re
 import uuid
-
+import logging
 from django.http.response import JsonResponse
 from rest_framework import status
 
@@ -41,18 +41,18 @@ class Aligner():
 
         for i in range(len(ids)):
             volpiano_separators = ChantProcessor.insert_separator_chars(volpianos[i])
-            volpiano_syllables = ChantProcessor.get_syllables_from_alpiano(volpiano_separators)
+            volpiano_syllables = ChantProcessor.get_syllables_from_alpiano(volpiano_separators)[1:-1]
             text_syllables = ChantProcessor.get_syllables_from_text(texts[i])
 
-            if ChantProcessor.check_volpiano_text_compatibility(volpiano_syllables, text_syllables):
-                success_sources.append(sources[i])
-                success_ids.append(ids[i])
-                success_urls.append(urls[i])
-                volpianos_to_align.append(volpiano_syllables)
-                texts_to_align.append(text_syllables)
-            else:
+            if not ChantProcessor.check_volpiano_text_compatibility(volpiano_syllables, text_syllables):
+                text_syllables = ChantProcessor.generate_placehoder_text(volpiano_syllables)
                 error_sources.append(sources[i])
                 error_ids.append(i)
+            success_sources.append(sources[i])
+            success_ids.append(ids[i])
+            success_urls.append(urls[i])
+            volpianos_to_align.append(volpiano_syllables)
+            texts_to_align.append(text_syllables)
 
         if add_empty_chant:
             volpianos_to_align.append([])
@@ -65,7 +65,7 @@ class Aligner():
         chants = []
         for i in range(len(success_ids) + int(add_empty_chant)):
             text = cls._extend_text_to_volpiano(texts_to_align[i], aligned_volpianos[i])
-            chants.append(cls._combine_volpiano_and_text(aligned_volpianos[i], text))
+            chants.append(cls._combine_volpiano_and_text([['']]+aligned_volpianos[i]+[['']], text))
 
         result = {
             'chants': chants,
@@ -109,7 +109,7 @@ class Aligner():
 
         # setup mafft
         mafft = Mafft()
-        mafft.set_input(mafft_inputs_path)
+        mafft.set_input(mafft_inputs_path)#.replace("\\", "/")) 
         mafft.add_option('--text')
         mafft.add_option('--textmatrix resources/00_textmatrix_complete')
 
@@ -122,7 +122,7 @@ class Aligner():
         while not finished:
             finished = True
 
-            sources, urls, _, volpianos, newick_names, _, _ = cls._get_alignment_data_from_db(ids)
+            sources, urls, texts, volpianos, newick_names, _, _ = cls._get_alignment_data_from_db(ids)
             newick_names_dict = {name: id for id, name in zip(ids, newick_names)}
 
             ### DEBUG
@@ -135,7 +135,7 @@ class Aligner():
             success_urls = []
 
             for volpiano in volpianos:
-                mafft.add_volpiano(volpiano)
+                mafft.add_volpiano(ChantProcessor.process_volpiano_flats(volpiano))
 
             # align the melodies
             try:
@@ -157,21 +157,26 @@ class Aligner():
                 guide_tree = None
 
             # try aligning melody and text
-            # text_syllabified = [ChantProcessor.get_syllables_from_text(text) for text in texts] - removed text from mafft alignment
+            text_syllabified = [ChantProcessor.get_syllables_from_text(text) for text in texts] # - removed text from mafft alignment
             chants = []
             next_iteration_ids = []
+            aligned_melodies_with_text_boundaries = Mafft.add_text_boundaries(aligned_melodies, volpianos, melody_order)
             for i, id in enumerate(melody_order):
                 try:
-                    chants.append(cls._get_volpiano_text_JSON(aligned_melodies[i], [])) # text_syllabified[id])) - removed text from mafft alignment
+                    aligned_chant_with_text, is_text_compatible = cls._get_volpiano_text_JSON(aligned_melodies_with_text_boundaries[i], text_syllabified[id])
+                    chants.append(aligned_chant_with_text)
                     success_sources.append(sources[id])
                     success_ids.append(ids[id])
                     success_volpianos.append(aligned_melodies[i])
                     success_urls.append(urls[id])
                     # store chant id in case it is going to be aligned again
                     next_iteration_ids.append(ids[id])
+                    if not is_text_compatible:
+                        raise RuntimeError("Unequal text and alpiano word/syllable counts")
                 except RuntimeError as e:
                     # found an error, the alignment will be run again
                     # finished = False
+                    logging.error(str(e))
                     error_sources.append(sources[id])
                     error_ids.append(id)
             # Add the empty chant at the end
@@ -211,8 +216,8 @@ class Aligner():
         '''
         _, _, _, _, _, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
         if concatenated:
-           return cls._concatenated_alignment(ids, siglums, cantus_ids, cls.alignment_pitches)
-        print('DEBUG: running MAFFT intervals with ids {}'.format(ids))
+           return cls._concatenated_alignment(ids, siglums, cantus_ids, cls.alignment_intervals)
+        logging.info('DEBUG: running MAFFT intervals with ids {}'.format(ids))
 
         temp_dir = settings.TEMP_DIR
         if not os.path.isdir(temp_dir):
@@ -227,7 +232,7 @@ class Aligner():
 
         # setup mafft
         mafft = Mafft()
-        mafft.set_input(mafft_inputs_path)
+        mafft.set_input(mafft_inputs_path)#.replace("\\", "/"))
         mafft.add_option('--text')
         mafft.add_option('--textmatrix resources/00_textmatrix_complete')
 
@@ -240,7 +245,7 @@ class Aligner():
         while not finished:
             finished = True
 
-            sources, urls, _, volpianos, newick_names, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
+            sources, urls, texts, volpianos, newick_names, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
             newick_names_dict = {name: id for id, name in zip(ids, newick_names)}
 
             success_sources = []
@@ -249,7 +254,8 @@ class Aligner():
             success_urls = []
 
             for volpiano in volpianos:
-                interval_repr = IntervalProcessor.transform_volpiano_to_intervals(volpiano)
+                interval_repr = IntervalProcessor.transform_volpiano_to_intervals(
+                    ChantProcessor.process_volpiano_flats(volpiano))
                 mafft.add_volpiano(interval_repr)
 
             # align the melodies
@@ -267,8 +273,8 @@ class Aligner():
             ]
             sequence_order = mafft.get_sequence_order()
 
-            print('DEBUG: Aligned melodies volpianos:')
-            print(aligned_melodies_volpianos)
+            logging.info('DEBUG: Aligned melodies volpianos:')
+            logging.info(aligned_melodies_volpianos)
 
             if not add_empty_chant:
                 # retrieve guide tree
@@ -280,21 +286,26 @@ class Aligner():
                 guide_tree = None
 
             # try aligning melody and text
-            # text_syllabified = [ChantProcessor.get_syllables_from_text(text) for text in texts] - removed text from mafft alignment
+            text_syllabified = [ChantProcessor.get_syllables_from_text(text) for text in texts]
             chants = []
             next_iteration_ids = []
+            aligned_melodies_with_text_boundaries = Mafft.add_text_boundaries(aligned_melodies_volpianos, volpianos, sequence_order, keep_liquescents=False)
             for i, id in enumerate(sequence_order):
                 try:
-                    chants.append(cls._get_volpiano_text_JSON(aligned_melodies_volpianos[i], [])) # text_syllabified[id])) - removed text from mafft alignment
+                    aligned_chant_with_text, is_text_compatible = cls._get_volpiano_text_JSON(aligned_melodies_with_text_boundaries[i], text_syllabified[id])
+                    chants.append(aligned_chant_with_text)
                     success_sources.append(sources[id])
                     success_ids.append(ids[id])
                     success_volpianos.append(aligned_melodies_intervals[i])
                     success_urls.append(urls[id])
                     # store chant id in case it is going to be aligned again
                     next_iteration_ids.append(ids[id])
+                    if not is_text_compatible:
+                        raise RuntimeError("Unequal text and alpiano word/syllable counts")
                 except RuntimeError as e:
                     # found an error, the alignment will be run again
                     # finished = False
+                    logging.error(str(e))
                     error_sources.append(sources[id])
                     error_ids.append(id)
             # Add the empty chant at the end
@@ -330,7 +341,6 @@ class Aligner():
 
     @classmethod
     def _get_volpiano_syllable_alignment(cls, volpianos):
-
         # extend each word to the same number of syllables
         # and each syllables to the same number of characters
         word_counts = [len(volpiano) for volpiano in volpianos]
@@ -397,11 +407,11 @@ class Aligner():
             'text': ''
         }, {
             'type': 'word-space',
-            'volpiano': ['-'],
+            'volpiano': [*volpiano[0][0]] + ["-"],
             'text': ''
         }]]
 
-        for i, word in enumerate(volpiano):
+        for i, word in enumerate(volpiano[1:-1]):
             # if the number of text syllables is higher than the number
             # of volpiano syllables, truncate the last ones into one
             if len(word) < len(text_syllabified[i]):
@@ -436,7 +446,7 @@ class Aligner():
                     })
 
             # end word with a word space
-            if i != len(volpiano) - 1:
+            if i != len(volpiano[1:-1]) - 1:
                 current_word.append({
                     'type': 'word-space',
                     'volpiano': ['3'],
@@ -448,7 +458,7 @@ class Aligner():
         # finally, append end-of-sequence character
         combined.append([{
             'type': 'end-sequence',
-            'volpiano': ['4'],
+            'volpiano': [*volpiano[-1][0]] + ['4'],
             'text': ''
         }])
 
@@ -457,7 +467,7 @@ class Aligner():
 
     @classmethod
     def _get_volpiano_text_JSON(cls, alpiano, text_words):
-
+        is_combatible_text = True
         alpiano_words = ChantProcessor.get_syllables_from_alpiano(alpiano)
         
         if len(alpiano_words) == 0:
@@ -479,19 +489,20 @@ class Aligner():
                 'type': 'end-sequence',
                 'volpiano': ['4'],
                 'text': ''
-            }]]
+            }]], is_combatible_text
 
-        if not ChantProcessor.check_volpiano_text_compatibility(alpiano_words, text_words):
+        if not ChantProcessor.check_volpiano_text_compatibility(alpiano_words[1:-1], text_words):
             # This is a problem. Often a melody has a doxology without text at the end,
             # and therefore we get a failure unnecessarily. There should be a solution
             # for this that pads the fulltext with extra empty syllables (or just a
             # character such as "#"). Therefore, we attempt to try fixing this issue with dummy
             # syllables.
-            alpiano_words, text_words = ChantProcessor.try_fixing_volpiano_and_text_compatibility(alpiano_words, text_words)
-            if not ChantProcessor.check_volpiano_text_compatibility(alpiano_words, text_words):
-                raise RuntimeError("Unequal text and alpiano word/syllable counts")
+            is_combatible_text = False
+            _, text_words = ChantProcessor.pad_doxology_text(alpiano_words[1:-1], text_words)
+            if not ChantProcessor.check_volpiano_text_compatibility(alpiano_words[1:-1], text_words):
+                text_words = ChantProcessor.generate_placehoder_text(alpiano_words[1:-1])
 
-        return cls._combine_volpiano_and_text(alpiano_words, text_words)
+        return cls._combine_volpiano_and_text(alpiano_words, text_words), is_combatible_text
 
 
     @classmethod

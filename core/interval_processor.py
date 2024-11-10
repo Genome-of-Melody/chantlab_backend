@@ -1,24 +1,66 @@
+import string
+
 class IntervalProcessor():
     '''
     The IntervalProcessor class provides methods to work
     with interval representations of melodies
-    '''
+    ''' 
+    halftone_encode = {key: (list(string.ascii_uppercase[::-1]) + list(string.ascii_lowercase))[i] 
+                       for i, key in enumerate(range(-26, 26))}
 
-    note_values = {
-        "9": 0, "a": 1, "b": 2, "c": 3, "d": 4,
-        "e": 5, "f": 6, "g": 7, "h": 8, "j": 9,
-        "k": 10, "l": 11, "m": 12, "n": 13, "o": 14,
-        "p": 15, "q": 16, "r": 17, "s": 18,
-
-        ")": 0, "A": 1, "B": 2, "C": 3, "D": 4,
-        "E": 5, "F": 6, "G": 7, "H": 8, "J": 9,
-        "K": 10, "L": 11, "M": 12, "N": 13, "O": 14,
-        "P": 15, "Q": 16, "R": 17, "S": 18
+    halftone_offsets = {
+        "(": 0, "8": 0,  # f
+        ")": 2, "9": 2,  # g
+        "A": 4, "a": 4,  # a
+        "Y": 5, "y": 5,  # bb
+        "B": 6, "b": 6,  # b
+        "C": 7, "c": 7,  # c'
+        "D": 9, "d": 9,  # d'
+        "E": 11, "e": 11,  # e'
+        "F": 12, "f": 12, # f'
+        "G": 14, "g": 14, # g'
+        "H": 16, "h": 16, # a'
+        "I": 17, "i": 17, # bb'
+        "J": 18, "j": 18, # b'
+        "K": 19, "k": 19, # c''
+        "L": 21, "l": 21, # d''
+        "X": 22, "x": 22, # eb''
+        "M": 23, "m": 23, # e''
+        "N": 24, "n": 24, # f''
+        "O": 26, "o": 26, # g''
+        "P": 28, "p": 28, # a''
+        "Z": 29, "z": 29, # bb''
+        "Q": 30, "q": 30, # b''
+        "R": 31, "r": 31, # c'''
+        "S": 33, "s": 33, # d'''
     }
 
-    interval_markers = "abcdefghjklmnopqrstABCDEFGHJKLMNOPQRST"
-
-    volpiano_notes = "9abcdefghjklmnopqrs)ABCDEFGHJKLMNOPQRS"
+    offset_tones = {
+        0: "8",
+        2: "9",
+        4: "a",
+        5: "y",
+        6: "b",
+        7: "c",
+        9: "d",
+        11: "e",
+        12: "f",
+        14: "g",
+        16: "h",
+        17: "i",
+        18: "j",
+        19: "k",
+        21: "l",
+        22: "x",
+        23: "m",
+        24: "n",
+        26: "o",
+        28: "p",
+        29: "z",
+        30: "q",
+        31: "r",
+        33: "s"
+    }
 
 
     @classmethod
@@ -29,14 +71,11 @@ class IntervalProcessor():
         seen_first_note = False
         previous_note = None
         interval_repr = ""
-
         for c in volpiano:
-            if c in cls.volpiano_notes:
+            if c in cls.halftone_offsets:
                 if seen_first_note:
-                    (interval_value, lower_first) =\
-                        cls._calculate_interval(previous_note, c)
-                    marker = cls._interval_to_marker(interval_value, lower_first)
-
+                    diff = cls.halftone_offsets[c] - cls.halftone_offsets[previous_note]
+                    marker = cls.halftone_encode[diff]
                     interval_repr += marker
                     previous_note = c
                 else:
@@ -58,14 +97,15 @@ class IntervalProcessor():
         seen_first_note = False
         previous_note = None
         volpiano = ""
+        reversed_halftone_map = {value: key for key, value in cls.halftone_encode.items()}
 
         for c in interval_repr:
-            if c in cls.interval_markers and seen_first_note:
-                interval_value = cls._get_interval_from_marker(c)
+            if c in reversed_halftone_map and seen_first_note:
+                interval_value = reversed_halftone_map[c]
                 note = cls._get_next_note_in_interval(previous_note, interval_value)
                 previous_note = note
                 volpiano += note
-            elif c in cls.volpiano_notes and not seen_first_note:
+            elif c in cls.halftone_offsets and not seen_first_note:
                 seen_first_note = True
                 previous_note = c
                 volpiano += c
@@ -75,49 +115,10 @@ class IntervalProcessor():
         return volpiano
 
 
-    @classmethod
-    def _calculate_interval(cls, note_a, note_b):
-        value_a = cls.note_values[note_a]
-        value_b = cls.note_values[note_b]
-        interval_value = abs(value_b - value_a)
-
-        interval_is_negative = True if note_a > note_b else False
-
-        return (interval_value, interval_is_negative)
-
-        
-    @classmethod
-    def _interval_to_marker(cls, interval_value, interval_is_negative):
-
-        marker = cls.interval_markers[interval_value]
-
-        # if interval is negative, return uppercase char
-        if interval_is_negative:
-            marker = marker.upper()
-
-        return marker
-
-
-    @classmethod
-    def _get_interval_from_marker(cls, interval_marker):
-        interval_is_negative = interval_marker.isupper()
-        
-        interval_marker_lower = interval_marker.lower()
-        interval_value = cls.interval_markers.index(interval_marker_lower)
-        if interval_is_negative:
-            interval_value *= -1
-
-        return interval_value
-
 
     @classmethod
     def _get_next_note_in_interval(cls, start_note, interval):
-        is_liquescent = start_note.isupper()
-        start_note = start_note.lower()
+        halftone_offset = cls.halftone_offsets[start_note] + interval
+        return cls.offset_tones[halftone_offset]
 
-        start_note_index = cls.volpiano_notes.index(start_note)
-        next_note = cls.volpiano_notes[start_note_index + interval]
-        if is_liquescent:
-            next_note = next_note.upper()
-        return next_note
 
