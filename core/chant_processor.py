@@ -71,18 +71,6 @@ class ChantProcessor():
                                 for al_word in extra_alpiano_words]
             text_words.extend(dummy_text_words)
         return alpiano_words, text_words
-    
-    @classmethod
-    def generate_placehoder_text(cls, alpiano_words):
-        '''
-        :param alpiano_words:
-        :param text_words:
-        :return:
-        '''
-        _DUMMY_SYLLABLE_TEXT = '#'
-        dummy_text_words = [[_DUMMY_SYLLABLE_TEXT for _ in al_word]
-                            for al_word in alpiano_words]
-        return dummy_text_words
 
     @classmethod
     def get_stressed_syllables(cls, text):
@@ -134,6 +122,35 @@ class ChantProcessor():
         siglum = '_'.join(siglum.replace('(', '').replace(')', '').split())
         return '{}__{}'.format(incipit_name, siglum)
 
+    @staticmethod
+    def concatenate_volpianos(sequences_to_align, sequence_as_list = False):
+        volpiano_map, sequences = [], []
+        unique_siglums = set()
+        unique_cantus_ids = set()
+        siglum_cantus_map = {}
+        for seq, volpiano_id, cantus_id, siglum in sequences_to_align:
+            if not siglum in siglum_cantus_map:
+                siglum_cantus_map[siglum] = {}
+            if not cantus_id in siglum_cantus_map[siglum]:
+                siglum_cantus_map[siglum][cantus_id] = (seq, volpiano_id)
+            unique_siglums.add(siglum)
+            unique_cantus_ids.add(cantus_id)
+        ordered_siglums = list(unique_siglums)
+        ordered_cantus_ids = list(unique_cantus_ids)
+        for siglum in ordered_siglums:
+            volpiano_cantus_map = []
+            new_sequence = []
+            for cantus_id in ordered_cantus_ids:
+                if cantus_id in siglum_cantus_map[siglum]:
+                    seq, volpiano_id = siglum_cantus_map[siglum][cantus_id]
+                else:
+                    seq = '' if not sequence_as_list else []
+                    volpiano_id = -1
+                volpiano_cantus_map.append(volpiano_id)
+                new_sequence.append(seq)
+            volpiano_map.append(volpiano_cantus_map)
+            sequences.append("#".join(new_sequence) if not sequence_as_list else new_sequence)
+        return sequences, volpiano_map, ordered_siglums
 
     @staticmethod
     def process_volpiano_flats(volpiano):

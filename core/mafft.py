@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 from core import pycantus # TODO replace by pycantus library once it will be public
+from core.chant_processor import ChantProcessor
 
 MAFFT_PATH = '/Users/hajicj/CES_TF/mafft/mafft-mac/mafftdir/bin/mafft'
 if not os.path.isfile(MAFFT_PATH):
@@ -22,6 +23,7 @@ class Mafft():
         self._counter = 0
         self._process = None
 
+        self._sequences_to_align = []
 
         self._aligned_sequences = None
         self._sequence_idxs = None
@@ -47,21 +49,36 @@ class Mafft():
     def set_prefix(self, prefix):
         self._prefix = prefix
 
+    def generate_sequence_file(self, concatenate=False):
+        sequences = []
+        volpiano_map, ordered_siglums = [], []
+        if concatenate:
+            sequences, volpiano_map, ordered_siglums = ChantProcessor.concatenate_volpianos(self._sequences_to_align)
+        else:
+            for seq, volpiano_id, _, siglum in self._sequences_to_align:
+                sequences.append(seq)
+                volpiano_map.append(volpiano_id)
+                ordered_siglums.append(siglum)
 
-    def add_volpiano(self, volpiano, name=None):
+        for seq in sequences:
+            with open(self._input, 'a') as file:
+                name = str(self._counter)
+
+                file.write("> " + name + "\n")
+                file.write(seq + "\n")
+                self._counter += 1
+        return volpiano_map, ordered_siglums
+
+    def add_volpiano(self, volpiano, volpiano_id, cantus_id, siglum):
         if not self._input:
             raise RuntimeError("Input file must be defined"
                                "before adding a chant")
 
         processed = pycantus.clean_volpiano(volpiano, keep_boundaries=False, keep_bars=False)
-        with open(self._input, 'a') as file:
+        
+        self._sequences_to_align.append((processed, volpiano_id, cantus_id, siglum))
 
-            if name is None:
-                name = str(self._counter)
 
-            file.write("> " + name + "\n")
-            file.write(processed + "\n")
-            self._counter += 1
 
     def _special_symbols_need_to_be_added(indices, id, boundaries_index, to_add):
         for pause_index in indices[id]:
@@ -117,22 +134,23 @@ class Mafft():
             boundaries = volpiano.replace("---", "~")
             boundaries = boundaries.replace("--", "|")
             boundaries = boundaries.replace("-", "")
-            # Make sure the first symbol is a 'new word' symbol
-            if not (len(boundaries) >= 1 and boundaries[0] == "1"):
-                boundaries = "1" + boundaries
-            if not (len(boundaries) >= 2 and boundaries[1] == "~"):
-                if len(boundaries) >= 2 and boundaries[1] == "|": # two dashes in volpiano instead of three looks more like a mistake
-                    boundaries = boundaries[0] + "~" + boundaries[2:]
-                else:
-                    boundaries = boundaries[0] + "~" + boundaries[1:]
-            # Make sure the last symbol is a 'new word' symbol
-            if not (len(boundaries) >= 1 and (boundaries[-1] == "4" or boundaries[-1] == "3")):
-                boundaries = boundaries + "4"
-            if not (len(boundaries) >= 2 and boundaries[-2] == "~"):
-                if len(boundaries) >= 2 and boundaries[-2] == "|": # two dashes in volpiano instead of three looks more like a mistake
-                    boundaries = boundaries[:-2] + "~" + boundaries[-1]
-                else:
-                    boundaries = boundaries[:-1] + "~" + boundaries[1:]
+            if len(boundaries) > 0:
+                # Make sure the first symbol is a 'new word' symbol
+                if not (len(boundaries) >= 1 and boundaries[0] == "1"):
+                    boundaries = "1" + boundaries
+                if not (len(boundaries) >= 2 and boundaries[1] == "~"):
+                    if len(boundaries) >= 2 and boundaries[1] == "|": # two dashes in volpiano instead of three looks more like a mistake
+                        boundaries = boundaries[0] + "~" + boundaries[2:]
+                    else:
+                        boundaries = boundaries[0] + "~" + boundaries[1:]
+                # Make sure the last symbol is a 'new word' symbol
+                if not (len(boundaries) >= 1 and (boundaries[-1] == "4" or boundaries[-1] == "3")):
+                    boundaries = boundaries + "4"
+                if not (len(boundaries) >= 2 and boundaries[-2] == "~"):
+                    if len(boundaries) >= 2 and boundaries[-2] == "|": # two dashes in volpiano instead of three looks more like a mistake
+                        boundaries = boundaries[:-2] + "~" + boundaries[-1]
+                    else:
+                        boundaries = boundaries[:-1] + "~" + boundaries[1:]
 
             melodies_with_boundaries.append(boundaries)
         
@@ -275,7 +293,6 @@ class Mafft():
         command += " ".join(self._options) + " "
         command += self._input + " " if self._input else ""
         process = subprocess.run(command, capture_output=True, shell=True)
-
         if process.stderr:
             print(process.stderr)
         elif process.stdout:
