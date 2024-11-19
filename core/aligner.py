@@ -4,6 +4,8 @@ import uuid
 import logging
 from django.http.response import JsonResponse
 from rest_framework import status
+from core import pycantus # TODO replace by pycantus library once it will be public
+ 
 
 from melodies.models import Chant
 
@@ -615,5 +617,6 @@ class Aligner():
 
             texts.append(chant.full_text)
             volpianos.append(chant.volpiano)
-
+        # replace liquescents by their default alternatives
+        volpianos = [pycantus.normalize_liquescents(vol) for vol in volpianos]
         return sources, urls, texts, volpianos, newick_names, siglums, cantus_ids

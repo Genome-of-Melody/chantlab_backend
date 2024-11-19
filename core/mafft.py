@@ -129,21 +129,13 @@ class Mafft():
     def add_text_boundaries(mafft_aligned_melodies, volpianos, melody_order, keep_liquescents = True):
         if len(mafft_aligned_melodies) == 0:
             return []
-        if not keep_liquescents:
-            mafft_aligned_melodies = [mel.lower().replace("(", "8").replace(")", "9") for mel in mafft_aligned_melodies]
-            volpianos = [
-                ''.join(
-                    (char.lower() if char not in {'Y', 'I', 'Z', 'X'} else char)
-                    .replace("(", "8")
-                    .replace(")", "9")
-                    for char in mel
-                )
-                for mel in volpianos
-            ]
         
         # remove all flats
         mafft_aligned_melodies = [mel.replace("y", "b").replace("Y", "B").replace("i", "j").replace("I", "J").replace("x", "m").replace("X", "M").replace("z", "q").replace("Z", "Q")
                                   for mel in mafft_aligned_melodies]
+        if not keep_liquescents:
+            mafft_aligned_melodies = [pycantus.normalize_liquescents(mel) for mel in mafft_aligned_melodies]
+            volpianos = [pycantus.normalize_liquescents(vol) for vol in volpianos]
 
         melodies_with_boundaries = []
         word_indices = []
