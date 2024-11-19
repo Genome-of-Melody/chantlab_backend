@@ -84,8 +84,14 @@ class Mafft():
         if concatenate:
             sequences, volpiano_map, ordered_siglums = ChantProcessor.concatenate_volpianos(self._sequences_to_align)
             subalignments = []
-            for cantus_id_sequences in list(map(list, zip(*[seq.split("#") for seq in sequences]))):
-                subalignments.append(self._align_sequences(cantus_id_sequences))
+            for i, cantus_id_sequences in enumerate(list(map(list, zip(*[seq.split("#") for seq in sequences])))):
+                subalignment = self._align_sequences(cantus_id_sequences)
+                if len(subalignment) == 0:
+                    logging.error(f'It was not possible to align the {i} row of melodies with the same cantus id. Returning unaligned melodies')
+                    max_length = max(len(s) for s in cantus_id_sequences)
+                    subalignment = [s.ljust(max_length, '-') for s in cantus_id_sequences]
+                subalignments.append(subalignment)
+
             sequences = list("#".join(seqs) for seqs in map(list, zip(*[alignment for alignment in subalignments])))
         else:
             for seq, volpiano_id, _, siglum in self._sequences_to_align:

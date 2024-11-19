@@ -29,7 +29,7 @@ class Aligner():
         Align chants using the word-based algorithm
         '''
         
-        sources, urls, texts, volpianos, names, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
+        sources, urls, texts, volpianos, newick_names, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
 
         error_sources = []
         error_ids = []
@@ -62,9 +62,10 @@ class Aligner():
             sequences_to_align = list(zip(volpianos_to_align, range(len(volpianos_to_align)), cantus_ids, siglums))
             sequences, volpiano_map, ordered_siglums = ChantProcessor.concatenate_volpianos(sequences_to_align, sequence_as_list=True)
             align_groups = [list(x) for x in zip(*[seq for seq in sequences])]
+            newick_names_dict = {name: [ids[j] for j in volpiano_map[i] if j != -1] for i, name in enumerate(ordered_siglums)}
         else:
             align_groups = [volpianos_to_align]
-
+            newick_names_dict = {name: id for id, name in zip(ids, newick_names)}
         volpiano_strings = []
         aligned_volpianos = []
         for align_group in align_groups:
@@ -95,7 +96,8 @@ class Aligner():
             chants = [[item for sublist in group for item in sublist] for group in grouped_chants]
         else:
             success_volpianos = volpiano_strings[0]
-
+            used_ids = set(success_ids)
+            newick_names_dict = {name: id for name, id in newick_names_dict.items() if id in used_ids}
         result = {
             'chants': chants,
             'errors': {
@@ -109,7 +111,7 @@ class Aligner():
                 'urls': success_urls
             },
             'guideTree': None,
-            'newickNamesDict': None,
+            'newickNamesDict': newick_names_dict,
             'alignmentMode': 'syllables'
         }
 
@@ -230,7 +232,11 @@ class Aligner():
             success_urls = [[urls[j] for j in volpiano_map[i] if j != -1] for i, _ in enumerate(ordered_siglums)]
             grouped_chants = list(map(list, zip(*[chants[i:i + len(ordered_siglums)] for i in range(0, len(chants), len(ordered_siglums))])))
             chants = [[item for sublist in group for item in sublist] for group in grouped_chants]
-        
+        else:
+            # remove unused newick names
+            used_ids = set(success_ids)
+            newick_names_dict = {name: id for name, id in newick_names_dict.items() if id in used_ids}
+
         result = {
             'chants': chants,
             'errors': {
@@ -375,7 +381,11 @@ class Aligner():
             success_urls = [[urls[j] for j in volpiano_map[i] if j != -1] for i, _ in enumerate(ordered_siglums)]
             grouped_chants = list(map(list, zip(*[chants[i:i + len(ordered_siglums)] for i in range(0, len(chants), len(ordered_siglums))])))
             chants = [[item for sublist in group for item in sublist] for group in grouped_chants]
-        
+        else:
+            # remove unused newick names
+            used_ids = set(success_ids)
+            newick_names_dict = {name: id for name, id in newick_names_dict.items() if id in used_ids}
+
         result = {
             'chants': chants,
             'errors': {
@@ -495,7 +505,8 @@ class Aligner():
             for j, syllable in enumerate(word):
                 # this should not happen
                 if not syllable:
-                    raise RuntimeError("Incorrect volpiano format - no syllable")
+                    logging.error("Incorrect volpiano format - no syllable")
+                    continue
                 
                 syllable_volpiano = [char for char in syllable]
                 current_word.append({
@@ -593,7 +604,7 @@ class Aligner():
         newick_names = []
         siglums = []
         cantus_ids = []
-
+        used_newick_names = set()
         for id in ids:
             try:
                 chant = Chant.objects.get(pk=id)
@@ -608,7 +619,13 @@ class Aligner():
                 urls.append(chant.drupal_path)
 
                 newick_name = ChantProcessor.build_chant_newick_name(chant)
+                if newick_name in used_newick_names:
+                    counter = 0
+                    while newick_name + "_" + str(counter) in used_newick_names:
+                        counter += 1
+                    newick_name += "_" + str(counter)
                 newick_names.append(newick_name)
+                used_newick_names.add(newick_name)
                 siglums.append(siglum)
                 cantus_ids.append(cantus_id)
             except Chant.DoesNotExist:
@@ -617,6 +634,10 @@ class Aligner():
 
             texts.append(chant.full_text)
             volpianos.append(chant.volpiano)
-        # replace liquescents by their default alternatives
-        volpianos = [pycantus.normalize_liquescents(vol) for vol in volpianos]
+        
+
+
+        # replace liquescents by their default alternatives and fix beginnings and ends
+        volpianos = [ChantProcessor.fix_volpiano_beginnings_and_ends(pycantus.normalize_liquescents(vol))
+                     for vol in volpianos]
         return sources, urls, texts, volpianos, newick_names, siglums, cantus_ids

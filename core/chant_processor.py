@@ -120,7 +120,8 @@ class ChantProcessor():
         incipit_name = '_'.join(incipit.split())
         siglum = chant.siglum if chant.siglum else '[nosource]'
         siglum = '_'.join(siglum.replace('(', '').replace(')', '').split())
-        return '{}__{}'.format(incipit_name, siglum)
+        cantus_id = chant.cantus_id
+        return '{}__{}__{}'.format(incipit_name, siglum, cantus_id)
 
     @staticmethod
     def concatenate_volpianos(sequences_to_align, sequence_as_list = False):
@@ -187,3 +188,12 @@ class ChantProcessor():
             else:
                 processed_volpiano += c
         return processed_volpiano
+
+
+    def fix_volpiano_beginnings_and_ends(volpiano):
+        if volpiano[:4] != "1---" or volpiano[-4:] != "---4":
+            fixed_volpiano = volpiano.strip("134-")
+            fixed_volpiano = "1---" + fixed_volpiano + "---4"
+            #logging.error("The correct beginning and end of volpiano '{}' is missing, fixed to '{}'".format(volpiano, fixed_volpiano))
+            volpiano = fixed_volpiano
+        return volpiano
