@@ -88,7 +88,7 @@ class Aligner():
             success_volpianos = ["#".join(melodies) for melodies in [list(x) for x in zip(*volpiano_strings)]]
             success_sources = ordered_siglums
             success_ids = [[ids[j] for j in volpiano_map[i] if j != -1] for i, _ in enumerate(ordered_siglums)]
-            uccess_urls = [[urls[j] for j in volpiano_map[i] if j != -1] for i, _ in enumerate(ordered_siglums)]
+            success_urls = [[urls[j] for j in volpiano_map[i] if j != -1] for i, _ in enumerate(ordered_siglums)]
             grouped_chants = list(map(list, zip(*[chants[i:i + len(ordered_siglums)] for i in range(0, len(chants), len(ordered_siglums))])))
             chants = [[item for sublist in group for item in sublist] for group in grouped_chants]
         else:
@@ -159,11 +159,10 @@ class Aligner():
 
             for i, (volpiano, cantus_id, siglum) in enumerate(zip(volpianos, cantus_ids, siglums)):
                 mafft.add_volpiano(ChantProcessor.process_volpiano_flats(volpiano), i, cantus_id, siglum)
-            volpiano_map, ordered_siglums = mafft.generate_sequence_file(concatenate = concatenated)
 
             # align the melodies
             try:
-                mafft.run()
+                volpiano_map, ordered_siglums = mafft.run(concatenate=concatenated)
             except RuntimeError as e:
                 cls._cleanup(mafft_inputs_path)
                 return JsonResponse({'message': 'There was a problem with MAFFT runtime'},
@@ -175,12 +174,11 @@ class Aligner():
 
 
             # retrieve guide tree
-            guide_tree = mafft.get_guide_tree()
             if concatenated:
-                guide_tree = cls._rename_tree_nodes(guide_tree, ordered_siglums)
+                guide_tree = mafft.get_guide_tree(ordered_siglums)
                 newick_names_dict = {name: [ids[j] for j in volpiano_map[i] if j != -1] for i, name in enumerate(ordered_siglums)}
             else:
-                guide_tree = cls._rename_tree_nodes(guide_tree, newick_names)
+                guide_tree = mafft.get_guide_tree(newick_names)
                 newick_names_dict = {name: id for id, name in zip(ids, newick_names)}
 
 
@@ -295,11 +293,10 @@ class Aligner():
                 interval_repr = IntervalProcessor.transform_volpiano_to_intervals(
                     ChantProcessor.process_volpiano_flats(volpiano))
                 mafft.add_volpiano(interval_repr, i, cantus_id, siglum)
-            volpiano_map, ordered_siglums = mafft.generate_sequence_file(concatenate = concatenated)
 
             # align the melodies
             try:
-                mafft.run()
+                volpiano_map, ordered_siglums = mafft.run(concatenate=concatenated)
             except RuntimeError as e:
                 cls._cleanup(mafft_inputs_path)
                 return JsonResponse({'message': 'There was a problem with MAFFT'},
@@ -321,12 +318,11 @@ class Aligner():
             logging.info(aligned_melodies_volpianos)
 
 
-            guide_tree = mafft.get_guide_tree()
             if concatenated:
-                guide_tree = cls._rename_tree_nodes(guide_tree, ordered_siglums)
+                guide_tree = mafft.get_guide_tree(ordered_siglums)
                 newick_names_dict = {name: [ids[j] for j in volpiano_map[i] if j != -1] for i, name in enumerate(ordered_siglums)}
             else:
-                guide_tree = cls._rename_tree_nodes(guide_tree, newick_names)
+                guide_tree = mafft.get_guide_tree(newick_names)
                 newick_names_dict = {name: id for id, name in zip(ids, newick_names)}
 
 
@@ -621,24 +617,3 @@ class Aligner():
             volpianos.append(chant.volpiano)
 
         return sources, urls, texts, volpianos, newick_names, siglums, cantus_ids
-
-
-    @classmethod
-    def _rename_tree_nodes(cls, tree_string, names):
-        """The guide tree from MAFFT uses numerical indices instead of meaningful names
-        for its leafs. We re-insert the meaningful names here.
-        """
-        ## DEBUG
-        # print('_rename_tree_nodes(): names total: {}'.format(len(names)))
-
-        def _sub_group(match, names):
-            # print('Matched ID: {}'.format(match.group()))
-            return names[int(match.group())]
-
-        # get rid of newlines
-        tree_string = ''.join(tree_string.split('\n'))
-        named_tree_string = re.sub('(?<=[0-9]__)([0-9]+)',
-                                   lambda m: _sub_group(m, names),
-                                   tree_string)
-
-        return named_tree_string

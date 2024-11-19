@@ -3,11 +3,13 @@ import subprocess
 import sys
 from core import pycantus # TODO replace by pycantus library once it will be public
 from core.chant_processor import ChantProcessor
+import logging
+from ete3 import Tree
 
 MAFFT_PATH = '/Users/hajicj/CES_TF/mafft/mafft-mac/mafftdir/bin/mafft'
 if not os.path.isfile(MAFFT_PATH):
     MAFFT_PATH = 'mafft'
-
+CONCATENATE_PLACEHOLDER = "concat_placeholder"
 class Mafft():
     '''
     The Mafft class is the interface for working with the MAFFT software
@@ -49,11 +51,42 @@ class Mafft():
     def set_prefix(self, prefix):
         self._prefix = prefix
 
-    def generate_sequence_file(self, concatenate=False):
+    def _align_sequences(self, sequences):
+        fasta_content = ""
+        for i, seq in enumerate(sequences):
+            fasta_content += f"> {i}\n{seq}\n"
+        if os.path.exists(self._input):
+            os.remove(self._input)
+        with open(self._input, 'a') as file:
+            file.write(fasta_content) 
+        command = ""
+        command += self._prefix + " " if self._prefix else ""
+        command += MAFFT_PATH + " "  # Temporary, for testing with local mafft install
+        options = [op for op in self._options if op != "--treeout"]
+        command += " ".join(options) + " "
+        command += self._input + " " if self._input else ""
+        process = subprocess.run(command, capture_output=True, shell=True)
+
+        if process.stderr:
+            logging.error(process.stderr)
+
+        if os.path.exists(self._input):
+            os.remove(self._input)
+
+        sequences, sequence_idxs =  Mafft._decode_process_output(process) 
+        
+        return [mel for _, mel in sorted({id: sequences[i] for i, id in enumerate(sequence_idxs)}.items())]
+
+        
+    def _generate_sequence_file(self, concatenate=False):
         sequences = []
         volpiano_map, ordered_siglums = [], []
         if concatenate:
             sequences, volpiano_map, ordered_siglums = ChantProcessor.concatenate_volpianos(self._sequences_to_align)
+            subalignments = []
+            for cantus_id_sequences in list(map(list, zip(*[seq.split("#") for seq in sequences]))):
+                subalignments.append(self._align_sequences(cantus_id_sequences))
+            sequences = list("#".join(seqs) for seqs in map(list, zip(*[alignment for alignment in subalignments])))
         else:
             for seq, volpiano_id, _, siglum in self._sequences_to_align:
                 sequences.append(seq)
@@ -203,24 +236,23 @@ class Mafft():
             file.write(text + "\n")
             self._counter += 1
 
-
-    def decode_process(self):
-        if not self._process:
+    def _decode_process_output(process):
+        if not process:
             raise RuntimeError("The process hasn't been run yet")
 
-        if self._process.stderr:
-            raise RuntimeError(self._process.stderr)
+        if process.stderr:
+            raise RuntimeError(process.stderr)
         
-        if not self._process.stdout:
-            self._aligned_sequences = []
-            self._sequence_idxs = []
+        if not process.stdout:
+            return [], []
 
-        stdout = self._process.stdout.decode('utf-8')
+        stdout = process.stdout.decode('utf-8')
         sequences = []
         sequence_idxs = []
         cur_sequence = ""
 
         # Iterate over lines of FASTA-formatted MSA output.
+        skip_next_sequence = False
         for part_sequence in stdout.split('\n'):
             # we are at the end of the output, only empty string remains
             if cur_sequence and not part_sequence:
@@ -228,32 +260,52 @@ class Mafft():
                 cur_sequence = ""
             # row with the name of the sequence
             elif part_sequence and part_sequence[0] == '>':
-                if cur_sequence:
-                    sequences.append(cur_sequence)
-                cur_sequence = ""
-
-                sequence_idxs.append(int(part_sequence[2:]))
+                if part_sequence == "> " + CONCATENATE_PLACEHOLDER:
+                    skip_next_sequence = True
+                else:
+                    skip_next_sequence = False
+                    if cur_sequence:
+                        sequences.append(cur_sequence)
+                    cur_sequence = ""
+                    sequence_idxs.append(int(part_sequence[2:]))
             # parts of the current sequence
             elif part_sequence and part_sequence[0] != '>':
-                cur_sequence += part_sequence
+                if not skip_next_sequence:
+                    cur_sequence += part_sequence
 
+        return sequences, sequence_idxs
+
+    def decode_process(self):
+        sequences, sequence_idxs =  Mafft._decode_process_output(self._process)
         self._aligned_sequences = sequences
         self._sequence_idxs = sequence_idxs
 
 
-    def load_guide_tree(self):
+
+    def load_guide_tree(self, node_names=None):
         if not self._output_guide_tree_file:
             raise RuntimeError('Cannot load guide tree: no guide tree file defined.')
         if not os.path.isfile(self._output_guide_tree_file):
             raise RuntimeError('Cannot load guide tree: guide tree file {} not found.'
                                ''.format(self._output_guide_tree_file))
-
+        self.__preprocess_guide_nodes(node_names=node_names) # remove placeholder node from the tree, used for concatenation workarround
         with open(self._output_guide_tree_file, 'r') as gt:
             gt_text = ''.join(gt.readlines())
 
         guide_tree = self.parse_guide_tree(gt_text)
         self._guide_tree = guide_tree
 
+
+    def __preprocess_guide_nodes(self, node_names=None):
+        tree = Tree(self._output_guide_tree_file)
+        for node in tree.traverse():
+            if "__" in node.name:
+                if node.name.split("__")[1] == CONCATENATE_PLACEHOLDER.lower():
+                    node.delete()
+                elif node_names:
+                    node.name = node_names[int(node.name.split("__")[1])]
+
+        tree.write(outfile=self._output_guide_tree_file)
 
     def parse_guide_tree(self, gt_text):
         '''Guide tree data structure:
@@ -266,9 +318,9 @@ class Mafft():
         return gt_text
 
 
-    def get_guide_tree(self):
+    def get_guide_tree(self, node_names=None):
         if not self._guide_tree:
-            self.load_guide_tree()
+            self.load_guide_tree(node_names)
         return self._guide_tree
 
 
@@ -286,13 +338,23 @@ class Mafft():
         return self._sequence_idxs
 
 
-    def run(self):
+    def run(self, concatenate=False):
+        volpiano_map, ordered_siglums = self._generate_sequence_file(concatenate=concatenate)
         command = ""
         command += self._prefix + " " if self._prefix else ""
         command += MAFFT_PATH + " "  # Temporary, for testing with local mafft install
         command += " ".join(self._options) + " "
+        if concatenate:
+            command += "--keeplength --add " + self._input+"."+CONCATENATE_PLACEHOLDER + " " # MAFFT workarround to generate only the tree, but not change the alignment
+            with open(self._input+"."+CONCATENATE_PLACEHOLDER, 'a') as file:
+                file.write(f"> {CONCATENATE_PLACEHOLDER}\n\n") 
         command += self._input + " " if self._input else ""
+
         process = subprocess.run(command, capture_output=True, shell=True)
+
+        if concatenate:
+            if os.path.exists(self._input+"."+CONCATENATE_PLACEHOLDER):
+                os.remove(self._input+"."+CONCATENATE_PLACEHOLDER)
         if process.stderr:
             print(process.stderr)
         elif process.stdout:
@@ -306,3 +368,4 @@ class Mafft():
         self._counter = 0
         self._aligned_sequences = None
         self._sequence_idxs = None
+        return volpiano_map, ordered_siglums

@@ -5,3 +5,4 @@ djangorestframework==3.12.2
 django-cors-headers==3.7.0
 pandas
 gunicorn==20.0.4
+ete3==3.1.3
