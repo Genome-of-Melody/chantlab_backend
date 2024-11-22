@@ -117,11 +117,8 @@ class ChantProcessor():
             token: [unnamed] if no incipit, [nosource] if no source.
         '''
         incipit = chant.incipit if chant.incipit else '[unnamed]'
-        incipit_name = '_'.join(incipit.split())
         siglum = chant.siglum if chant.siglum else '[nosource]'
-        siglum = '_'.join(siglum.replace('(', '').replace(')', '').split())
-        cantus_id = chant.cantus_id
-        return '{}__{}__{}'.format(incipit_name, siglum, cantus_id)
+        return '{} {} {}'.format(incipit, siglum, chant.id)
 
     @staticmethod
     def concatenate_volpianos(sequences_to_align, sequence_as_list = False):

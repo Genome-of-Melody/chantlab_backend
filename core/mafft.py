@@ -301,7 +301,7 @@ class Mafft():
                 if node.name.split("__")[1] == CONCATENATE_PLACEHOLDER.lower():
                     node.delete()
                 elif node_names:
-                    node.name = node_names[int(node.name.split("__")[1])]
+                    node.name = node_names[int(node.name.split("__")[1])].replace(" ", "_")
 
         tree.write(outfile=self._output_guide_tree_file)
 
