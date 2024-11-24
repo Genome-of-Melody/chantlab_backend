@@ -16,45 +16,40 @@ from core.exporter import Exporter
 from core.uploader import Uploader
 import json
 import pandas as pd
+from django.db.models import Q
+
 
 
 @api_view(['POST'])
 def chant_list(request):
-    data_sources = json.loads(request.POST['dataSources'])
-    chants = Chant.objects.filter(dataset_idx__in=data_sources)
+    # Parse all filters once
+    try:
+        data_sources = json.loads(request.POST.get('dataSources', '[]'))
+        genres = json.loads(request.POST.get('genres', '[]'))
+        offices = json.loads(request.POST.get('offices', '[]'))
+        fontes = json.loads(request.POST.get('fontes', '[]'))
+        incipit = request.POST.get('incipit', None)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-    print('Debug: chant_list(request): before applying genres filter, got {} chants'.format(len(chants)))
-
-    genres = json.loads(request.POST['genres'])
-    if (genres is not None):
-        chants = chants.filter(genre_id__in=genres)
-
-    print('Debug: chant_list(request):  before applying offices filter, got {} chants'.format(len(chants)))
-
-    offices = json.loads(request.POST['offices'])
-    if (offices is not None):
-        chants = chants.filter(office_id__in=offices)
-
-    print('Debug: chant_list(request):  before applying fontes filter, got {} chants.'.format(len(chants)))
-
-    # Only apply the Fontes filter (source liturgical books)
-    # if at least some are actually used. If none are selected,
-    # this is probably a bug in the front-end.
-    fontes = json.loads(request.POST['fontes'])
-    if (fontes is not None) and (len(fontes) > 0):
-        chants = chants.filter(siglum__in=fontes).order_by('incipit')
-
-    # chants = Chant.objects.filter(dataset_idx__in=data_sources)\
-    #             .filter(genre_id__in=genres)\
-    #             .filter(office_id__in=offices)\
-    #             .order_by('incipit')
-
-    incipit = request.POST['incipit']
-    if incipit is not None:
-        chants = chants.filter(incipit__icontains=incipit)
-
-    chants = chants.order_by('incipit')
+    # Build filters dynamically
+    filters = Q()
     
+    if data_sources:
+        filters &= Q(dataset_idx__in=data_sources)
+    if genres:
+        filters &= Q(genre_id__in=genres)
+    if offices:
+        filters &= Q(office_id__in=offices)
+    if fontes:
+        filters &= Q(siglum__in=fontes)
+    if incipit:
+        filters &= Q(incipit__icontains=incipit)
+
+    # Query with combined filters and ordering
+    chants = Chant.objects.filter(filters).order_by('incipit')
+
+    # Serialize and return the results
     chants_serializer = ChantSerializer(chants, many=True)
     return JsonResponse(chants_serializer.data, safe=False)
 
