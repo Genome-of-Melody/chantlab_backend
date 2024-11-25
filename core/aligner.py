@@ -98,6 +98,10 @@ class Aligner():
             success_volpianos = volpiano_strings[0]
             used_ids = set(success_ids)
             newick_names_dict = {name: id for name, id in newick_names_dict.items() if id in used_ids}
+        
+        # Remove word boundaries from alpianos
+        success_volpianos = [vol.replace("~", "").replace("|", "") for vol in success_volpianos]
+
         result = {
             'chants': chants,
             'errors': {
