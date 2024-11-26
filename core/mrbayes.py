@@ -8,9 +8,9 @@ import random
 import string
 import logging
 
-def mrbayes_analyzis(ids, alpianos, number_of_generations, sources):
+def mrbayes_analyzis(ids, alpianos, number_of_generations, alignment_names):
     mrbayes = MrBayesVolpiano(ngen = number_of_generations)
-    newick, nexus_con_tre, nexus_alignment, mb_script, error_message = mrbayes.run(alignment_names=sources, alpianos=alpianos)
+    newick, nexus_con_tre, nexus_alignment, mb_script, error_message = mrbayes.run(alignment_names=alignment_names, alpianos=alpianos)
     
     result = {
         'newick': newick,

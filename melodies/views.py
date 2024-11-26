@@ -199,9 +199,9 @@ def mrbayes_volpiano(request):
     try:
         ids = json.loads(request.POST['ids'])
         alpianos = json.loads(request.POST['alpianos'])
-        sources = json.loads(request.POST['sources'])
+        alignment_names = json.loads(request.POST['alignment_names'])
         number_of_generations = int(request.POST['numberOfGenerations'])
-        return JsonResponse(mrbayes.mrbayes_analyzis(ids, alpianos, number_of_generations, sources))
+        return JsonResponse(mrbayes.mrbayes_analyzis(ids, alpianos, number_of_generations, alignment_names))
     except Exception as e:
         logging.error("mrbayes volpiano error: {}".format(e))
         return JsonResponse({
