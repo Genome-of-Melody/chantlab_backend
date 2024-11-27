@@ -75,7 +75,7 @@ RUN echo '[program:chantlab_backend]\n' \
 RUN echo '#!/bin/bash\n' \
     '# Script that supervisor uses to keep the chantlab backend running.\n' \
     '. /opt/conda/etc/profile.d/conda.sh\n' \
-    'if ! ps ax | grep -v grep | grep "chantlab/bin/gunicorn --timeout 0 backend.wsgi:application --bind 0.0.0.0:8000" > /dev/null\n' \
+    'if ! ps ax | grep -v grep | grep "chantlab/bin/gunicorn --timeout 600 --workers 4 backend.wsgi:application --bind 0.0.0.0:8000" > /dev/null\n' \
     'then\n' \
     '    # Log restart\n' \
     '    echo "Chantlab backend down; restarting run_chantlab_backend.sh"\n' \
@@ -88,7 +88,7 @@ RUN echo '#!/bin/bash\n' \
     "    # Create superuser admin account to be able to log into the Django project's admin page\n" \
     '    DJANGO_SUPERUSER_PASSWORD=$SUPER_USER_PASSWORD python manage.py createsuperuser --username $SUPER_USER_NAME --email $SUPER_USER_EMAIL --noinput\n' \
     '    # Run the Django application using gunicorn\n' \
-    '    gunicorn --timeout 0 backend.wsgi:application --bind 0.0.0.0:8000\n' \
+    '    gunicorn --timeout 600 --workers 4 backend.wsgi:application --bind 0.0.0.0:8000\n' \
     'fi\n' \
     | sed 's/^ //g' \
     > /opt/run_chantlab_backend.sh
