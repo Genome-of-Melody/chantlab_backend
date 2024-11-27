@@ -22,17 +22,11 @@ class ChantProcessor():
         # syllables = [syllabify(word) for word in words]
         return syllables
 
-
     @classmethod
     def get_syllables_from_alpiano(cls, volpiano):
         """
-        Divides a string of volpiano notation with separator signs
-        into words and syllables.
-
-        @returns: list of words, where each word is a list of syllables
         """
         volpiano_words = volpiano.split('~')    # divides volpiano into words
-        volpiano_words = volpiano_words[1:-1]   # discard 1st (clef) and last (bar) words
         volpiano_syllables = [volpiano_word.split('|') for volpiano_word in volpiano_words]
 
         return volpiano_syllables
@@ -60,7 +54,7 @@ class ChantProcessor():
         return len(volpiano_words) == len(text_words)
 
     @classmethod
-    def try_fixing_volpiano_and_text_compatibility(cls, alpiano_words, text_words):
+    def pad_doxology_text(cls, alpiano_words, text_words):
         '''Attempts to apply fixes to some trivial incompatibilities between text and volpiano.
 
         - Tries to pad the text so that it has the same number of words as the volpiano.
@@ -123,7 +117,80 @@ class ChantProcessor():
             token: [unnamed] if no incipit, [nosource] if no source.
         '''
         incipit = chant.incipit if chant.incipit else '[unnamed]'
-        incipit_name = '_'.join(incipit.split())
         siglum = chant.siglum if chant.siglum else '[nosource]'
-        siglum = '_'.join(siglum.replace('(', '').replace(')', '').split())
-        return '{}__{}'.format(incipit_name, siglum)
+        return '{} {} {}'.format(incipit, siglum, chant.id)
+
+    @staticmethod
+    def concatenate_volpianos(sequences_to_align, sequence_as_list = False):
+        volpiano_map, sequences = [], []
+        unique_siglums = set()
+        unique_cantus_ids = set()
+        siglum_cantus_map = {}
+        for seq, volpiano_id, cantus_id, siglum in sequences_to_align:
+            if not siglum in siglum_cantus_map:
+                siglum_cantus_map[siglum] = {}
+            if not cantus_id in siglum_cantus_map[siglum]:
+                siglum_cantus_map[siglum][cantus_id] = (seq, volpiano_id)
+            unique_siglums.add(siglum)
+            unique_cantus_ids.add(cantus_id)
+        ordered_siglums = list(unique_siglums)
+        ordered_cantus_ids = list(unique_cantus_ids)
+        for siglum in ordered_siglums:
+            volpiano_cantus_map = []
+            new_sequence = []
+            for cantus_id in ordered_cantus_ids:
+                if cantus_id in siglum_cantus_map[siglum]:
+                    seq, volpiano_id = siglum_cantus_map[siglum][cantus_id]
+                else:
+                    seq = '' if not sequence_as_list else []
+                    volpiano_id = -1
+                volpiano_cantus_map.append(volpiano_id)
+                new_sequence.append(seq)
+            volpiano_map.append(volpiano_cantus_map)
+            sequences.append("#".join(new_sequence) if not sequence_as_list else new_sequence)
+        return sequences, volpiano_map, ordered_siglums
+
+    @staticmethod
+    def process_volpiano_flats(volpiano):
+        y = False # bb
+        i = False # bb'
+        x = False # eb'
+        z = False # bb''
+        processed_volpiano = ""
+        for c in volpiano:
+            if c == "y":
+                y = True
+            elif c == "Y": 
+                y = False
+            elif c == "i":
+                i = True
+            elif c == "I":
+                i = False
+            elif c == "x":
+                x = True
+            elif c == "X": 
+                x = False
+            elif c == "z":
+                z = True
+            elif c == "Z": 
+                z = False
+            elif c == "b" and y:
+                processed_volpiano += "y"
+            elif c == "j" and i:
+                processed_volpiano += "i"
+            elif c == "m" and x:
+                processed_volpiano += "x"
+            elif c == "q" and z:
+                processed_volpiano += "z"
+            else:
+                processed_volpiano += c
+        return processed_volpiano
+
+
+    def fix_volpiano_beginnings_and_ends(volpiano):
+        if volpiano[:4] != "1---" or volpiano[-4:] != "---4":
+            fixed_volpiano = volpiano.strip("134-")
+            fixed_volpiano = "1---" + fixed_volpiano + "---4"
+            #logging.error("The correct beginning and end of volpiano '{}' is missing, fixed to '{}'".format(volpiano, fixed_volpiano))
+            volpiano = fixed_volpiano
+        return volpiano
