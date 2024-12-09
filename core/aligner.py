@@ -637,7 +637,7 @@ class Aligner():
                     status=status.HTTP_404_NOT_FOUND)
 
             texts.append(chant.full_text)
-            volpianos.append(chant.volpiano)
+            volpianos.append(chant.volpiano if chant.volpiano is not None else "")
         
 
 
