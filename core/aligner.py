@@ -283,7 +283,6 @@ class Aligner():
         mafft = Mafft()
         mafft.set_input(mafft_inputs_path)#.replace("\\", "/"))
         mafft.add_option('--text')
-        mafft.add_option('--textmatrix resources/00_textmatrix_complete')
 
         # save errors
         error_sources = []
