@@ -179,14 +179,15 @@ def delete_dataset(request):
 def chant_align(request):
     ids = json.loads(request.POST['idsToAlign'])
     mode = request.POST['mode']
+    keep_liquescents = request.POST['keep_liquescents']
     concatenated = json.loads(request.POST['concatenated'])
     
     if mode == "full":
-        return JsonResponse(Aligner.alignment_pitches(ids, concatenated))
+        return JsonResponse(Aligner.alignment_pitches(ids, concatenated, keep_liquescents))
     elif mode == "intervals":
-        return JsonResponse(Aligner.alignment_intervals(ids, concatenated))
+        return JsonResponse(Aligner.alignment_intervals(ids, concatenated, keep_liquescents))
     else:
-        return JsonResponse(Aligner.alignment_syllables(ids, concatenated))
+        return JsonResponse(Aligner.alignment_syllables(ids, concatenated, keep_liquescents))
 
     
 @api_view(['POST'])
