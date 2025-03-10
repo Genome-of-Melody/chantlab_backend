@@ -118,7 +118,7 @@ class ChantProcessor():
         '''
         incipit = chant.incipit if chant.incipit else '[unnamed]'
         siglum = chant.siglum if chant.siglum else '[nosource]'
-        return '{} {} {}'.format(incipit, siglum, chant.id)
+        return '{} {} {} m{}'.format(incipit, siglum, chant.id, chant.mode)
 
     @staticmethod
     def concatenate_volpianos(sequences_to_align, sequence_as_list = False):
