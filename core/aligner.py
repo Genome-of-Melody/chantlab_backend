@@ -319,10 +319,22 @@ class Aligner():
                 aligned_melodies_volpianos = ["#".join([IntervalProcessor.transform_intervals_to_volpiano(intervals) 
                                                         for intervals in intervals_group.split("#")]) 
                                                         for intervals_group in aligned_melodies_intervals]
+                if keep_liquescents: # reconstruct liquenscents
+                    aligned_melodies_volpianos = ["#".join([
+                        ChantProcessor.reconstruct_liquenscents(al_vol, volpianos[volpiano_map[vol_i][vol_j]])
+                        if volpiano_map[vol_i][vol_j] != -1 else al_vol
+                                                            for vol_j, al_vol in enumerate(al_vols.split("#"))]) 
+                                                            for vol_i, al_vols in enumerate(aligned_melodies_volpianos)]
             else:
                 aligned_melodies_volpianos = [IntervalProcessor.transform_intervals_to_volpiano(intervals)
                     for intervals in aligned_melodies_intervals
                 ]
+                if keep_liquescents: # reconstruct liquenscents
+                    aligned_melodies_volpianos = [
+                        ChantProcessor.reconstruct_liquenscents(al_vol, volpianos[vol_id]) for al_vol, vol_id in zip(aligned_melodies_volpianos, volpiano_map) 
+                    ]
+                        
+
             sequence_order = mafft.get_sequence_order()
 
             logging.info('DEBUG: Aligned melodies volpianos:')
@@ -641,7 +653,7 @@ class Aligner():
 
 
         # replace liquescents by their default alternatives and fix beginnings and ends
-        if keep_liquescents:
+        if not keep_liquescents:
             volpianos = [ChantProcessor.fix_volpiano_beginnings_and_ends(pycantus.normalize_liquescents(vol))
                         for vol in volpianos]
         else:
