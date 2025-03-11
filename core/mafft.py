@@ -275,8 +275,11 @@ class Mafft():
 
     def decode_process(self):
         sequences, sequence_idxs =  Mafft._decode_process_output(self._process)
-        self._aligned_sequences = sequences
-        self._sequence_idxs = sequence_idxs
+        #self._aligned_sequences = sequences
+        #self._sequence_idxs = sequence_idxs        
+        self._aligned_sequences = [mel for _, mel in sorted({id: sequences[i] for i, id in enumerate(sequence_idxs)}.items())]
+        self._sequence_idxs = [mel_id for mel_id, _ in sorted({id: sequences[i] for i, id in enumerate(sequence_idxs)}.items())]
+        
 
 
 
