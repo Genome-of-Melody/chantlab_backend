@@ -179,7 +179,7 @@ def delete_dataset(request):
 def chant_align(request):
     ids = json.loads(request.POST['idsToAlign'])
     mode = request.POST['mode']
-    keep_liquescents = request.POST['keepLiquescents']
+    keep_liquescents = json.loads(request.POST['keepLiquescents'])
     concatenated = json.loads(request.POST['concatenated'])
     
     if mode == "full":
