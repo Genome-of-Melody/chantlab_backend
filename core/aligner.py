@@ -24,12 +24,12 @@ class Aligner():
 
 
     @classmethod
-    def alignment_syllables(cls, ids, concatenated = False):
+    def alignment_syllables(cls, ids, concatenated = False, keep_liquescents=True):
         '''
         Align chants using the word-based algorithm
         '''
         
-        sources, urls, texts, volpianos, newick_names, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
+        sources, urls, texts, volpianos, newick_names, siglums, cantus_ids = cls._get_alignment_data_from_db(ids, keep_liquescents=keep_liquescents)
 
         error_sources = []
         error_ids = []
@@ -123,7 +123,7 @@ class Aligner():
 
 
     @classmethod
-    def alignment_pitches(cls, ids, concatenated = False):
+    def alignment_pitches(cls, ids, concatenated = False, keep_liquescents=True):
         '''
         Align chants using MSA on pitch values
         '''
@@ -154,7 +154,7 @@ class Aligner():
         while not finished:
             finished = True
 
-            sources, urls, texts, volpianos, newick_names, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
+            sources, urls, texts, volpianos, newick_names, siglums, cantus_ids = cls._get_alignment_data_from_db(ids, keep_liquescents=keep_liquescents)
 
             ### DEBUG
             #print('Aligning IDs: {}'.format(ids))
@@ -198,7 +198,7 @@ class Aligner():
                 aligned_melodies = [mel for _, mel in sorted({id: aligned_melodies[i] for i, id in enumerate(melody_order)}.items())]
                 alignment = [mel.split("#") for mel in aligned_melodies]
                 
-                alignment_with_text_boundaries = [Mafft.add_text_boundaries(cantus_id_group, cls._group_volpianos(volpianos, volpiano_map, subseq_id), list(range(len(cantus_id_group)))) 
+                alignment_with_text_boundaries = [Mafft.add_text_boundaries(cantus_id_group, cls._group_volpianos(volpianos, volpiano_map, subseq_id), list(range(len(cantus_id_group))), keep_liquescents=keep_liquescents) 
                                                   for subseq_id, cantus_id_group in enumerate([list(x) for x in zip(*alignment)])]
                 melody_order = []
                 aligned_melodies_with_text_boundaries = []
@@ -207,7 +207,7 @@ class Aligner():
                         melody_order.append(volpiano_map[siglum_id][cantus_id_id])
                         aligned_melodies_with_text_boundaries.append(alignment_with_text_boundaries[cantus_id_id][siglum_id])
             else:
-                aligned_melodies_with_text_boundaries = Mafft.add_text_boundaries(aligned_melodies, volpianos, melody_order)
+                aligned_melodies_with_text_boundaries = Mafft.add_text_boundaries(aligned_melodies, volpianos, melody_order, keep_liquescents=keep_liquescents)
 
             for i, id in enumerate(melody_order):
                 try:
@@ -262,7 +262,7 @@ class Aligner():
 
 
     @classmethod
-    def alignment_intervals(cls, ids, concatenated = False):
+    def alignment_intervals(cls, ids, concatenated = False, keep_liquescents=True):
         '''
         Align chants using MSA on interval values
         '''
@@ -293,7 +293,7 @@ class Aligner():
         while not finished:
             finished = True
 
-            sources, urls, texts, volpianos, newick_names, siglums, cantus_ids = cls._get_alignment_data_from_db(ids)
+            sources, urls, texts, volpianos, newick_names, siglums, cantus_ids = cls._get_alignment_data_from_db(ids, keep_liquescents=keep_liquescents)
 
             success_sources = []
             success_ids = []
@@ -319,10 +319,22 @@ class Aligner():
                 aligned_melodies_volpianos = ["#".join([IntervalProcessor.transform_intervals_to_volpiano(intervals) 
                                                         for intervals in intervals_group.split("#")]) 
                                                         for intervals_group in aligned_melodies_intervals]
+                if keep_liquescents: # reconstruct liquenscents
+                    aligned_melodies_volpianos = ["#".join([
+                        ChantProcessor.reconstruct_liquenscents(al_vol, volpianos[volpiano_map[vol_i][vol_j]])
+                        if volpiano_map[vol_i][vol_j] != -1 else al_vol
+                                                            for vol_j, al_vol in enumerate(al_vols.split("#"))]) 
+                                                            for vol_i, al_vols in enumerate(aligned_melodies_volpianos)]
             else:
                 aligned_melodies_volpianos = [IntervalProcessor.transform_intervals_to_volpiano(intervals)
                     for intervals in aligned_melodies_intervals
                 ]
+                if keep_liquescents: # reconstruct liquenscents
+                    aligned_melodies_volpianos = [
+                        ChantProcessor.reconstruct_liquenscents(al_vol, volpianos[vol_id]) for al_vol, vol_id in zip(aligned_melodies_volpianos, volpiano_map) 
+                    ]
+                        
+
             sequence_order = mafft.get_sequence_order()
 
             logging.info('DEBUG: Aligned melodies volpianos:')
@@ -344,7 +356,7 @@ class Aligner():
                 aligned_melodies_volpianos = [mel for _, mel in sorted({id: aligned_melodies_volpianos[i] for i, id in enumerate(sequence_order)}.items())]
                 alignment = [mel.split("#") for mel in aligned_melodies_volpianos]
                 
-                alignment_with_text_boundaries = [Mafft.add_text_boundaries(cantus_id_group, cls._group_volpianos(volpianos, volpiano_map, subseq_id), list(range(len(cantus_id_group))), keep_liquescents=False) 
+                alignment_with_text_boundaries = [Mafft.add_text_boundaries(cantus_id_group, cls._group_volpianos(volpianos, volpiano_map, subseq_id), list(range(len(cantus_id_group))), keep_liquescents=keep_liquescents) 
                                                   for subseq_id, cantus_id_group in enumerate([list(x) for x in zip(*alignment)])]
                 sequence_order = []
                 aligned_melodies_with_text_boundaries = []
@@ -353,7 +365,7 @@ class Aligner():
                         sequence_order.append(volpiano_map[siglum_id][cantus_id_id])
                         aligned_melodies_with_text_boundaries.append(alignment_with_text_boundaries[cantus_id_id][siglum_id])
             else:
-                aligned_melodies_with_text_boundaries = Mafft.add_text_boundaries(aligned_melodies_volpianos, volpianos, sequence_order, keep_liquescents=False)
+                aligned_melodies_with_text_boundaries = Mafft.add_text_boundaries(aligned_melodies_volpianos, volpianos, sequence_order, keep_liquescents=keep_liquescents)
            
             for i, id in enumerate(sequence_order):
                 try:
@@ -599,7 +611,7 @@ class Aligner():
 
 
     @classmethod
-    def _get_alignment_data_from_db(cls, ids):
+    def _get_alignment_data_from_db(cls, ids, keep_liquescents=True):
         sources = []
         urls = []
         texts = []
@@ -641,6 +653,10 @@ class Aligner():
 
 
         # replace liquescents by their default alternatives and fix beginnings and ends
-        volpianos = [ChantProcessor.fix_volpiano_beginnings_and_ends(pycantus.normalize_liquescents(vol))
-                     for vol in volpianos]
+        if not keep_liquescents:
+            volpianos = [ChantProcessor.fix_volpiano_beginnings_and_ends(pycantus.normalize_liquescents(vol))
+                        for vol in volpianos]
+        else:
+            volpianos = [ChantProcessor.fix_volpiano_beginnings_and_ends(vol)
+                        for vol in volpianos]
         return sources, urls, texts, volpianos, newick_names, siglums, cantus_ids

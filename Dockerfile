@@ -58,7 +58,7 @@ COPY ./manage.py /opt/chantlab_backend/manage.py
 WORKDIR /opt/chantlab_backend
 
 # Install Supervisord
-RUN apt-get update && apt-get install -y --no-install-recommends supervisor \
+RUN apt-get update && apt-get install -y --no-install-recommends supervisor procps \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Supervisord configuration

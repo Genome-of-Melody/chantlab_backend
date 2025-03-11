@@ -118,7 +118,11 @@ class ChantProcessor():
         '''
         incipit = chant.incipit if chant.incipit else '[unnamed]'
         siglum = chant.siglum if chant.siglum else '[nosource]'
-        return '{} {} {}'.format(incipit, siglum, chant.id)
+        if chant.mode:
+            return '{} {} {} mode {}'.format(incipit, siglum, chant.id, chant.mode)
+        else:
+            return '{} {} {}'.format(incipit, siglum, chant.id, chant.mode)
+
 
     @staticmethod
     def concatenate_volpianos(sequences_to_align, sequence_as_list = False):
@@ -194,3 +198,25 @@ class ChantProcessor():
             #logging.error("The correct beginning and end of volpiano '{}' is missing, fixed to '{}'".format(volpiano, fixed_volpiano))
             volpiano = fixed_volpiano
         return volpiano
+
+    @staticmethod
+    def reconstruct_liquenscents(aligned_volpiano, original_volpiano):
+        al_i = 0
+        orig_i = 0
+        reconstructed_volpiano = ""
+        for t in aligned_volpiano:
+            if t in 'abcdefghijklmnopqrstuvwxyz89':
+                al_i = aligned_volpiano.find(t, al_i + 1)
+                basic_tone_i = original_volpiano.find(t, orig_i + 1)
+                liq_t = t.upper().replace('8', '(').replace('9', ')')
+                liquescent_tone_i = original_volpiano.find(liq_t, orig_i + 1)
+                if basic_tone_i == -1 or (liquescent_tone_i != -1 and liquescent_tone_i < basic_tone_i):
+                    orig_i = liquescent_tone_i
+                    reconstructed_volpiano += liq_t
+                else:
+                    orig_i = basic_tone_i
+                    reconstructed_volpiano += t
+            else:
+                reconstructed_volpiano += t
+
+        return reconstructed_volpiano
