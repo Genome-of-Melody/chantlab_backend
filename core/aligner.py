@@ -195,7 +195,11 @@ class Aligner():
             chants = []
 
             if concatenated:
-                aligned_melodies = [mel for _, mel in sorted({id: aligned_melodies[i] for i, id in enumerate(melody_order)}.items())]
+                # reorder volpiano_map, ordered_siglums
+                volpiano_map = [volpiano_map[i] for i in melody_order]
+                ordered_siglums = [ordered_siglums[i] for i in melody_order]
+
+                #aligned_melodies = [mel for _, mel in sorted({id: aligned_melodies[i] for i, id in enumerate(melody_order)}.items())]
                 alignment = [mel.split("#") for mel in aligned_melodies]
                 
                 alignment_with_text_boundaries = [Mafft.add_text_boundaries(cantus_id_group, cls._group_volpianos(volpianos, volpiano_map, subseq_id), list(range(len(cantus_id_group))), keep_liquescents=keep_liquescents) 
@@ -315,7 +319,19 @@ class Aligner():
 
             # retrieve alignments
             aligned_melodies_intervals = mafft.get_aligned_sequences()
+            sequence_order = mafft.get_sequence_order()
+            
             if concatenated:
+                guide_tree = mafft.get_guide_tree(ordered_siglums)
+                newick_names_dict = {name: [ids[j] for j in volpiano_map[i] if j != -1] for i, name in enumerate(ordered_siglums)}
+            else:
+                guide_tree = mafft.get_guide_tree(newick_names)
+                newick_names_dict = {name: id for id, name in zip(ids, newick_names)}
+
+            if concatenated:
+                volpiano_map = [volpiano_map[i] for i in sequence_order]
+                ordered_siglums = [ordered_siglums[i] for i in sequence_order]
+                
                 aligned_melodies_volpianos = ["#".join([IntervalProcessor.transform_intervals_to_volpiano(intervals) 
                                                         for intervals in intervals_group.split("#")]) 
                                                         for intervals_group in aligned_melodies_intervals]
@@ -335,25 +351,17 @@ class Aligner():
                     ]
                         
 
-            sequence_order = mafft.get_sequence_order()
 
             logging.info('DEBUG: Aligned melodies volpianos:')
             logging.info(aligned_melodies_volpianos)
 
-
-            if concatenated:
-                guide_tree = mafft.get_guide_tree(ordered_siglums)
-                newick_names_dict = {name: [ids[j] for j in volpiano_map[i] if j != -1] for i, name in enumerate(ordered_siglums)}
-            else:
-                guide_tree = mafft.get_guide_tree(newick_names)
-                newick_names_dict = {name: id for id, name in zip(ids, newick_names)}
 
 
             # try aligning melody and text
             text_syllabified = [ChantProcessor.get_syllables_from_text(text) for text in texts]
             chants = []
             if concatenated:
-                aligned_melodies_volpianos = [mel for _, mel in sorted({id: aligned_melodies_volpianos[i] for i, id in enumerate(sequence_order)}.items())]
+                #aligned_melodies_volpianos = [mel for _, mel in sorted({id: aligned_melodies_volpianos[i] for i, id in enumerate(sequence_order)}.items())]
                 alignment = [mel.split("#") for mel in aligned_melodies_volpianos]
                 
                 alignment_with_text_boundaries = [Mafft.add_text_boundaries(cantus_id_group, cls._group_volpianos(volpianos, volpiano_map, subseq_id), list(range(len(cantus_id_group))), keep_liquescents=keep_liquescents) 
@@ -366,7 +374,7 @@ class Aligner():
                         aligned_melodies_with_text_boundaries.append(alignment_with_text_boundaries[cantus_id_id][siglum_id])
             else:
                 aligned_melodies_with_text_boundaries = Mafft.add_text_boundaries(aligned_melodies_volpianos, volpianos, sequence_order, keep_liquescents=keep_liquescents)
-           
+
             for i, id in enumerate(sequence_order):
                 try:
                     aligned_chant_with_text, is_text_compatible = cls._get_volpiano_text_JSON(aligned_melodies_with_text_boundaries[i], text_syllabified[id] if id != -1 else [])

@@ -201,6 +201,7 @@ class ChantProcessor():
 
     @staticmethod
     def reconstruct_liquenscents(aligned_volpiano, original_volpiano):
+        original_volpiano = ChantProcessor.process_volpiano_flats(original_volpiano)
         al_i = 0
         orig_i = 0
         reconstructed_volpiano = ""
