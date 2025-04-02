@@ -287,6 +287,8 @@ class Aligner():
         mafft = Mafft()
         mafft.set_input(mafft_inputs_path)#.replace("\\", "/"))
         mafft.add_option('--text')
+        mafft.add_option('--textmatrix resources/mafft_interval_matrix')
+
 
         # save errors
         error_sources = []
@@ -328,10 +330,9 @@ class Aligner():
                 guide_tree = mafft.get_guide_tree(newick_names)
                 newick_names_dict = {name: id for id, name in zip(ids, newick_names)}
 
+            volpiano_map = [volpiano_map[i] for i in sequence_order]
+            ordered_siglums = [ordered_siglums[i] for i in sequence_order]
             if concatenated:
-                volpiano_map = [volpiano_map[i] for i in sequence_order]
-                ordered_siglums = [ordered_siglums[i] for i in sequence_order]
-                
                 aligned_melodies_volpianos = ["#".join([IntervalProcessor.transform_intervals_to_volpiano(intervals) 
                                                         for intervals in intervals_group.split("#")]) 
                                                         for intervals_group in aligned_melodies_intervals]
