@@ -4,7 +4,7 @@ import uuid
 import logging
 from django.http.response import JsonResponse
 from rest_framework import status
-from core import pycantus # TODO replace by pycantus library once it will be public
+from pycantus.volpiano.utils import normalize_liquescents
  
 
 from melodies.models import Chant
@@ -663,7 +663,7 @@ class Aligner():
 
         # replace liquescents by their default alternatives and fix beginnings and ends
         if not keep_liquescents:
-            volpianos = [ChantProcessor.fix_volpiano_beginnings_and_ends(pycantus.normalize_liquescents(vol))
+            volpianos = [ChantProcessor.fix_volpiano_beginnings_and_ends(normalize_liquescents(vol))
                         for vol in volpianos]
         else:
             volpianos = [ChantProcessor.fix_volpiano_beginnings_and_ends(vol)

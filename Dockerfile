@@ -16,7 +16,7 @@ RUN conda create -n chantlab python=3.11 && conda clean -afy
 
 # Activate environment and install dependencies
 COPY ./requirements.txt .
-RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && conda activate chantlab && pip install -r requirements.txt"
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && conda activate chantlab && pip install -r requirements.txt && pip install --no-deps chant21==0.4.6"
 
 # Install MAFFT
 RUN wget https://mafft.cbrc.jp/alignment/software/mafft_7.505-1_amd64.deb \
