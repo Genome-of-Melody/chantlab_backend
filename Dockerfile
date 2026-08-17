@@ -51,7 +51,7 @@ COPY ./mrbayes-temp /opt/chantlab_backend/mrbayes-temp
 COPY ./resources /opt/chantlab_backend/resources
 COPY ./melodies /opt/chantlab_backend/melodies
 COPY ./scripts /opt/chantlab_backend/scripts
-COPY ./chants.db /opt/chantlab_backend/chants.db
+COPY ./seeds /opt/chantlab_backend/seeds
 COPY ./manage.py /opt/chantlab_backend/manage.py
 
 # Set working directory

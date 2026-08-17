@@ -1,13 +1,7 @@
-from django.shortcuts import render
-from django.db.models import Max
-
 from django.http.response import JsonResponse
-from rest_framework.parsers import JSONParser 
 from rest_framework import status
- 
-from melodies.models import Chant
-from melodies.serializers import ChantSerializer
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 import logging
 from core.aligner import Aligner
 from core import mrbayes
@@ -18,11 +12,40 @@ import json
 import pandas as pd
 from django.db.models import Q
 
+from melodies.access import (
+    all_ids_visible,
+    is_default_dataset_name,
+    user_owns_dataset,
+    visible_chants,
+)
+from melodies.models import Chant
+from melodies.serializers import ChantSerializer
+
+
+def _chants_dataframe(chants):
+    field_names = [field.name for field in chants.model._meta.fields]
+    return pd.DataFrame.from_records(list(chants.values_list()), columns=field_names)
+
+
+def _validate_new_dataset_name(name, user):
+    name = (name or '').strip()
+    if not name:
+        return None, JsonResponse({'message': 'Dataset name is required'}, status=status.HTTP_400_BAD_REQUEST)
+    if is_default_dataset_name(name):
+        return None, JsonResponse(
+            {'message': 'That name is reserved for a default dataset'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if Chant.objects.filter(owner=user, dataset_name=name).exists():
+        return None, JsonResponse(
+            {'message': 'You already have a dataset with that name'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return name, None
 
 
 @api_view(['POST'])
 def chant_list(request):
-    # Parse all filters once
     try:
         data_sources = json.loads(request.POST.get('dataSources', '[]'))
         genres = json.loads(request.POST.get('genres', '[]'))
@@ -32,9 +55,8 @@ def chant_list(request):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-    # Build filters dynamically
     filters = Q()
-    
+
     if data_sources:
         filters &= Q(dataset_idx__in=data_sources)
     if genres:
@@ -46,20 +68,17 @@ def chant_list(request):
     if incipit:
         filters &= Q(incipit__icontains=incipit)
 
-    # Query with combined filters and ordering
-    chants = Chant.objects.filter(filters).order_by('incipit')
-
-    # Serialize and return the results
-    chants_serializer = ChantSerializer(chants, many=True)
+    chants = visible_chants(request.user).filter(filters).order_by('incipit')
+    chants_serializer = ChantSerializer(chants, many=True, context={'request': request})
     return JsonResponse(chants_serializer.data, safe=False)
 
 
 @api_view(['GET'])
 def chant_display(request, pk):
     try:
-        chant = Chant.objects.get(id=pk)
+        chant = visible_chants(request.user).get(id=pk)
     except Chant.DoesNotExist:
-        return JsonResponse({'message': 'The chant does not exist'}, status=status.HTTP_404_NOT_FOUND)   
+        return JsonResponse({'message': 'The chant does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
     try:
         chant_json = ChantProcessor.get_JSON(chant.full_text, chant.volpiano)
@@ -67,33 +86,45 @@ def chant_display(request, pk):
         chant_json = None
     stresses = ChantProcessor.get_stressed_syllables(chant.full_text)
     return JsonResponse({
-        'db_source': ChantSerializer(chant).data,
-        'json_volpiano': json.loads(chant_json) if chant_json else None, 
+        'db_source': ChantSerializer(chant, context={'request': request}).data,
+        'json_volpiano': json.loads(chant_json) if chant_json else None,
         'stresses': stresses})
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def upload_data(request):
-    if request.FILES['file']:
+    if request.FILES.get('file'):
         file = request.FILES['file']
-        name = request.POST['name']
+        name, error = _validate_new_dataset_name(request.POST.get('name'), request.user)
+        if error:
+            return error
 
         df = pd.read_csv(file)
-
-        new_index = Uploader.upload_dataframe(df, name)
+        new_index = Uploader.upload_dataframe(df, name, owner=request.user)
 
         return JsonResponse({
             "name": name,
             "index": new_index
         })
 
+    return JsonResponse({'message': 'File is required'}, status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def update_volpiano(request):
     id = int(request.POST['id'])
     volpiano = request.POST['volpiano']
 
-    chant = Chant.objects.get(pk=id)
+    try:
+        chant = Chant.objects.get(pk=id, owner=request.user)
+    except Chant.DoesNotExist:
+        return JsonResponse(
+            {'message': 'You can only edit volpiano in your own datasets'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
     chant.volpiano = volpiano
     chant.save()
     return JsonResponse({"updated": id})
@@ -101,42 +132,42 @@ def update_volpiano(request):
 
 @api_view(['GET'])
 def get_data_sources(request):
-    data_sources = Chant.objects.values_list('dataset_idx', 'dataset_name').distinct()
+    data_sources = visible_chants(request.user).values_list('dataset_idx', 'dataset_name').distinct()
     return JsonResponse({"dataSources": list(data_sources)})
 
 
 @api_view(['POST'])
 def get_sigla(request):
     data_sources = json.loads(request.POST['dataSources'])
-
-    # This needs to be re-done so that only fontes pertaining to the current
-    # dataset selection are displayed.
-    fontes = Chant.objects.filter(dataset_idx__in=data_sources).values_list('siglum').distinct()
+    fontes = visible_chants(request.user).filter(
+        dataset_idx__in=data_sources
+    ).values_list('siglum').distinct()
     return JsonResponse({"fontes": sorted(list(fontes))})
 
 
 @api_view(['POST'])
 def export_dataset(request):
     ids = json.loads(request.POST['idsToExport'])
-    return Exporter.export_to_csv(ids)
+    visible_ids = list(
+        visible_chants(request.user).filter(pk__in=ids).values_list('id', flat=True)
+    )
+    return Exporter.export_to_csv(visible_ids)
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def create_dataset(request):
-    print('Creating dataset with name: {}'.format(request.POST['name']))
-
     ids = json.loads(request.POST['idsToExport'])
-    dataset_name = request.POST['name']
+    dataset_name, error = _validate_new_dataset_name(request.POST.get('name'), request.user)
+    if error:
+        return error
 
-    chants = Chant.objects.filter(pk__in=ids)
-    chants_df = pd.DataFrame.from_records(
-        chants.values_list()
-    )
-    opts = chants.model._meta
-    field_names = [field.name for field in opts.fields]
-    chants_df.columns = field_names
+    chants = visible_chants(request.user).filter(pk__in=ids)
+    if not chants.exists():
+        return JsonResponse({'message': 'No visible chants to copy'}, status=status.HTTP_400_BAD_REQUEST)
 
-    new_index = Uploader.upload_dataframe(chants_df, dataset_name)
+    chants_df = _chants_dataframe(chants)
+    new_index = Uploader.upload_dataframe(chants_df, dataset_name, owner=request.user)
 
     return JsonResponse({
         "name": dataset_name,
@@ -145,20 +176,23 @@ def create_dataset(request):
 
 
 @api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
 def add_to_dataset(request):
-
     ids = json.loads(request.POST['idsToExport'])
     dataset_idx = int(request.POST['idx'])
 
-    chants = Chant.objects.filter(pk__in=ids)
-    chants_df = pd.DataFrame.from_records(
-       chants.values_list()
-    )
-    opts = chants.model._meta
-    field_names = [field.name for field in opts.fields]
-    chants_df.columns = field_names
+    if not user_owns_dataset(request.user, dataset_idx):
+        return JsonResponse(
+            {'message': 'You can only add chants to your own datasets'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
-    dataset_name = Uploader.add_to_dataset(chants_df, dataset_idx)
+    chants = visible_chants(request.user).filter(pk__in=ids)
+    if not chants.exists():
+        return JsonResponse({'message': 'No visible chants to copy'}, status=status.HTTP_400_BAD_REQUEST)
+
+    chants_df = _chants_dataframe(chants)
+    dataset_name = Uploader.add_to_dataset(chants_df, dataset_idx, owner=request.user)
 
     return JsonResponse({
         "name": dataset_name,
@@ -167,10 +201,18 @@ def add_to_dataset(request):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def delete_dataset(request):
     dataset_name = request.POST['name']
+    if is_default_dataset_name(dataset_name):
+        return JsonResponse(
+            {'message': 'Default datasets cannot be deleted'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
-    Uploader.delete_dataset(dataset_name)
+    deleted = Uploader.delete_dataset(dataset_name, request.user)
+    if not deleted:
+        return JsonResponse({'message': 'Dataset not found'}, status=status.HTTP_404_NOT_FOUND)
 
     return JsonResponse({})
 
@@ -181,7 +223,10 @@ def chant_align(request):
     mode = request.POST['mode']
     keep_liquescents = json.loads(request.POST['keepLiquescents'])
     concatenated = json.loads(request.POST['concatenated'])
-    
+
+    if not all_ids_visible(request.user, ids):
+        return JsonResponse({'message': 'One or more chants are not available'}, status=status.HTTP_403_FORBIDDEN)
+
     if mode == "full":
         return JsonResponse(Aligner.alignment_pitches(ids, concatenated, keep_liquescents))
     elif mode == "intervals":
@@ -189,10 +234,10 @@ def chant_align(request):
     else:
         return JsonResponse(Aligner.alignment_syllables(ids, concatenated, keep_liquescents))
 
-    
+
 @api_view(['POST'])
 def chant_align_text(request):
-    
+
     return JsonResponse({})
 
 @api_view(['POST'])
@@ -202,6 +247,14 @@ def mrbayes_volpiano(request):
         alpianos = json.loads(request.POST['alpianos'])
         alignment_names = json.loads(request.POST['alignment_names'])
         number_of_generations = int(request.POST['numberOfGenerations'])
+        if not all_ids_visible(request.user, ids):
+            return JsonResponse({
+                'newick': "",
+                'mbScript': "",
+                'nexusAlignment': "",
+                'nexusConTre': "",
+                'error': 'One or more chants are not available'
+            }, status=status.HTTP_403_FORBIDDEN)
         return JsonResponse(mrbayes.mrbayes_analyzis(ids, alpianos, number_of_generations, alignment_names))
     except Exception as e:
         logging.error("mrbayes volpiano error: {}".format(e))

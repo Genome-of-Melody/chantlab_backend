@@ -1,6 +1,8 @@
-from django.db.models import Max, F
+from django.db.models import Max
+
 from django.conf import settings
 
+from melodies.access import is_default_dataset_name
 from melodies.models import Chant
 
 import sqlite3
@@ -11,43 +13,40 @@ class Uploader():
     '''
 
     @classmethod
-    def upload_dataframe(cls, df, dataset_name):
+    def upload_dataframe(cls, df, dataset_name, owner=None):
         '''
         Upload a dataframe to database
         '''
-        # establish db connection
-        db_name = settings.DATABASE_NAME
+        db_name = settings.DATABASES['default']['NAME']
         con = sqlite3.connect(db_name)
 
-        # get current maximum id
-        latest_id = Chant.objects.latest('id').id
+        try:
+            latest_id = Chant.objects.latest('id').id
+        except Chant.DoesNotExist:
+            latest_id = 0
 
-        # set ids of dataframe
         start_id = latest_id + 1
+        df = df.copy()
         df.index = [id for id in range(start_id, len(df.values) + start_id)]
 
-        # drop the id column
-        df.drop(['id'], axis=1, inplace=True)
+        df = cls._prepare_chant_dataframe(df, dataset_name, owner)
 
-        # set dataset name and index
-        df['dataset_name'] = dataset_name
         max_dataset_idx = Chant.objects.aggregate(Max('dataset_idx'))['dataset_idx__max']
-        new_dataset_index = max_dataset_idx + 1
+        new_dataset_index = 0 if max_dataset_idx is None else max_dataset_idx + 1
         df['dataset_idx'] = new_dataset_index
 
-        # append data to database
         df.to_sql('chant', con, if_exists='append', index=True, index_label="id")
 
         return new_dataset_index
 
 
     @classmethod
-    def add_to_dataset(cls, df, idx):
+    def add_to_dataset(cls, df, idx, owner=None):
         '''
         Add data to existing dataset. If specified dataset does not exist,
         creates dataset with name 'Undefined'.
         '''
-        db_name = settings.DATABASE_NAME
+        db_name = settings.DATABASES['default']['NAME']
         con = sqlite3.connect(db_name)
 
         dataset = Chant.objects.filter(dataset_idx=idx)
@@ -56,60 +55,50 @@ class Uploader():
         else:
             dataset_name = 'Undefined'
 
-        # get current maximum id
-        latest_id = Chant.objects.latest('id').id
+        try:
+            latest_id = Chant.objects.latest('id').id
+        except Chant.DoesNotExist:
+            latest_id = 0
 
-        # set ids of dataframe
         start_id = latest_id + 1
+        df = df.copy()
         df.index = [id for id in range(start_id, len(df.values) + start_id)]
 
-        # drop the id column
-        df.drop(['id'], axis=1, inplace=True)
-
-        # set dataset name and index
-        df['dataset_name'] = dataset_name
+        df = cls._prepare_chant_dataframe(df, dataset_name, owner)
         df['dataset_idx'] = idx
 
-        # append data to database
         df.to_sql('chant', con, if_exists='append', index=True, index_label="id")
 
         return dataset_name
 
 
     @classmethod
-    def delete_dataset(cls, dataset_name):
-        '''Remove all items that belong to the given `dataset_name`.
+    def delete_dataset(cls, dataset_name, owner):
+        '''Remove all items that belong to the given `dataset_name` and owner.
 
-        :param dataset_name: A string. If there are no rows that belong to
-            the requested dataset, nothing is done.
-
-        :return:
+        Default datasets are never deleted. Dataset indexes are left unchanged
+        so other users' selections stay valid.
         '''
-        db_name = settings.DATABASE_NAME
-        con = sqlite3.connect(db_name)
+        if is_default_dataset_name(dataset_name) or owner is None:
+            return False
 
-        # print('Uploader.delete_dataset: removing dataset name {}'.format(dataset_name))
-
-        # Find all the rows in the dataset
-        chants_to_remove = Chant.objects.filter(dataset_name__exact=dataset_name)
+        chants_to_remove = Chant.objects.filter(
+            dataset_name__exact=dataset_name,
+            owner=owner,
+        )
         if not chants_to_remove.exists():
-            # We should possibly log this event.
-            # print('Dataset for removal is empty: {}'.format(dataset_name))
-            return
+            return False
 
-        # Find the given dataset idx
-        chants_to_remove_idx = chants_to_remove.all()[:1].values_list('dataset_idx', flat=True)[0]
-        # This needs to be debugged pre-emptively.
-        # print('Dataset idx for removal: {}'.format(chants_to_remove_idx))
-
-        # Remove the given rows in the dataset
         chants_to_remove.delete()
-
-        # Set back the dataset idxs so that they remain contiguous
-        chants_to_decrement = Chant.objects.filter(dataset_idx__gt=chants_to_remove_idx)
-        chants_to_decrement.update(dataset_idx=F('dataset_idx') - 1)
-
-        return
+        return True
 
 
+    @classmethod
+    def _prepare_chant_dataframe(cls, df, dataset_name, owner):
+        for col in ('id', 'owner', 'owner_id', 'is_owned'):
+            if col in df.columns:
+                df.drop(columns=[col], inplace=True)
 
+        df['dataset_name'] = dataset_name
+        df['owner_id'] = owner.id if owner is not None else None
+        return df

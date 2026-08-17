@@ -25,7 +25,8 @@ SECRET_KEY = 'cu$y+@vgyk08(tiu$*0_lr4euy07za+l7sv@(*6zzd367r4+x!'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False if os.getenv("DEBUG_MODE", "True") == "False" else True
 
-ALLOWED_HOSTS = [os.getenv("ALLOWED_HOST", "localhost")]
+allowed_host = os.getenv("ALLOWED_HOST", "localhost")
+ALLOWED_HOSTS = list({allowed_host, "localhost", "127.0.0.1"})
 
 
 # Application definition
@@ -39,9 +40,19 @@ INSTALLED_APPS = [
     'melodies.apps.MelodiesConfig',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework.authtoken',
     'corsheaders',
     'gunicorn'
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
+}
 
 MIDDLEWARE = [
     # CORS

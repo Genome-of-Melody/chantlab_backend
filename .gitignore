@@ -58,3 +58,8 @@ testem.log
 # System Files
 .DS_Store
 Thumbs.db
+
+# Runtime database (shared datasets are seeded from seeds/default_datasets/)
+chants.db
+*.sqlite3
+

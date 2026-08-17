@@ -16,7 +16,7 @@ class Exporter():
 
         chants = Chant.objects.filter(pk__in=ids)
         opts = chants.model._meta
-        field_names = [field.name for field in opts.fields]
+        field_names = [field.name for field in opts.fields if field.name != 'owner']
 
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment;filename=dataset.csv'
