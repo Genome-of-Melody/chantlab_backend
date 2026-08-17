@@ -2,7 +2,7 @@ from django.db.models import Q
 
 from melodies.models import Chant
 
-DEFAULT_DATASET_NAMES = ('CantusCorpus v0.2', 'netvor-0.3')
+DEFAULT_DATASET_NAMES = ('CantusCorpus v1.0', 'netvor-0.3')
 
 
 def is_default_dataset_name(name):
@@ -11,6 +11,20 @@ def is_default_dataset_name(name):
 
 def default_dataset_filter():
     return Q(dataset_name__in=DEFAULT_DATASET_NAMES, owner__isnull=True)
+
+
+def ordered_data_sources(user):
+    pairs = list(
+        visible_chants(user).values_list('dataset_idx', 'dataset_name').distinct()
+    )
+    default_rank = {name: index for index, name in enumerate(DEFAULT_DATASET_NAMES)}
+    pairs.sort(key=lambda item: (
+        0 if item[1] in default_rank else 1,
+        default_rank.get(item[1], item[0]),
+        item[0],
+        item[1],
+    ))
+    return pairs
 
 
 def visible_chants(user):

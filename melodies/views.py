@@ -13,8 +13,10 @@ import pandas as pd
 from django.db.models import Q
 
 from melodies.access import (
+    DEFAULT_DATASET_NAMES,
     all_ids_visible,
     is_default_dataset_name,
+    ordered_data_sources,
     user_owns_dataset,
     visible_chants,
 )
@@ -132,8 +134,10 @@ def update_volpiano(request):
 
 @api_view(['GET'])
 def get_data_sources(request):
-    data_sources = visible_chants(request.user).values_list('dataset_idx', 'dataset_name').distinct()
-    return JsonResponse({"dataSources": list(data_sources)})
+    return JsonResponse({
+        "dataSources": ordered_data_sources(request.user),
+        "defaultDatasetNames": list(DEFAULT_DATASET_NAMES),
+    })
 
 
 @api_view(['POST'])
