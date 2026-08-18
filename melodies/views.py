@@ -23,6 +23,15 @@ from melodies.access import (
 from melodies.models import Chant
 from melodies.serializers import ChantSerializer
 
+# List view omits bulky fields (manuscript text, notes, etc.) that the table
+# does not display. Volpiano and full_text are kept for the dashboard and
+# for alignment metadata stored from the current list selection.
+CHANT_LIST_FIELDS = (
+    'id', 'corpus_id', 'incipit', 'cantus_id', 'mode', 'finalis', 'differentia',
+    'siglum', 'position', 'folio', 'feast_id', 'genre_id', 'office_id',
+    'source_id', 'full_text', 'volpiano', 'dataset_name', 'dataset_idx',
+)
+
 
 def _chants_dataframe(chants):
     field_names = [field.name for field in chants.model._meta.fields]
@@ -46,14 +55,23 @@ def _validate_new_dataset_name(name, user):
     return name, None
 
 
+def _json_post(request, key, default):
+    raw = request.POST.get(key)
+    if raw is None or raw == '':
+        return default
+    return json.loads(raw)
+
+
 @api_view(['POST'])
 def chant_list(request):
     try:
-        data_sources = json.loads(request.POST.get('dataSources', '[]'))
-        genres = json.loads(request.POST.get('genres', '[]'))
-        offices = json.loads(request.POST.get('offices', '[]'))
-        fontes = json.loads(request.POST.get('fontes', '[]'))
+        data_sources = _json_post(request, 'dataSources', [])
+        genres = _json_post(request, 'genres', None)
+        offices = _json_post(request, 'offices', None)
+        fontes = _json_post(request, 'fontes', None)
         incipit = request.POST.get('incipit', None)
+        hide_incomplete = bool(_json_post(request, 'hideIncomplete', False))
+        hide_without_volpiano = bool(_json_post(request, 'hideChantsWithoutVolpiano', False))
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
@@ -69,10 +87,13 @@ def chant_list(request):
         filters &= Q(siglum__in=fontes)
     if incipit:
         filters &= Q(incipit__icontains=incipit)
+    if hide_incomplete:
+        filters &= Q(incipit__isnull=True) | ~Q(incipit__endswith='*')
+    if hide_without_volpiano:
+        filters &= Q(volpiano__isnull=False) & ~Q(volpiano='')
 
-    chants = visible_chants(request.user).filter(filters).order_by('incipit')
-    chants_serializer = ChantSerializer(chants, many=True, context={'request': request})
-    return JsonResponse(chants_serializer.data, safe=False)
+    chants = visible_chants(request.user).filter(filters).order_by('incipit').values(*CHANT_LIST_FIELDS)
+    return JsonResponse(list(chants), safe=False)
 
 
 @api_view(['GET'])
@@ -145,8 +166,8 @@ def get_sigla(request):
     data_sources = json.loads(request.POST['dataSources'])
     fontes = visible_chants(request.user).filter(
         dataset_idx__in=data_sources
-    ).values_list('siglum').distinct()
-    return JsonResponse({"fontes": sorted(list(fontes))})
+    ).exclude(siglum__isnull=True).exclude(siglum='').values_list('siglum', flat=True).distinct()
+    return JsonResponse({"fontes": sorted(fontes)})
 
 
 @api_view(['POST'])
