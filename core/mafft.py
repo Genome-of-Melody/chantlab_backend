@@ -6,9 +6,18 @@ from core.chant_processor import ChantProcessor
 import logging
 from ete3 import Tree
 
-MAFFT_PATH = '/Users/hajicj/CES_TF/mafft/mafft-mac/mafftdir/bin/mafft'
-if not os.path.isfile(MAFFT_PATH):
-    MAFFT_PATH = 'mafft'
+_DEFAULT_MAFFT_PATH = '/opt/conda/bin/mafft'
+
+
+def _resolve_mafft_path():
+    configured = os.getenv('MAFFT_PATH', _DEFAULT_MAFFT_PATH)
+    if os.path.isfile(configured):
+        return configured
+    found = shutil.which(configured) or shutil.which('mafft')
+    return found or 'mafft'
+
+
+MAFFT_PATH = _resolve_mafft_path()
 CONCATENATE_PLACEHOLDER = "concat_placeholder"
 class Mafft():
     '''
