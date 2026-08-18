@@ -1,7 +1,7 @@
 import os
 import subprocess
 import sys
-from core import pycantus # TODO replace by pycantus library once it will be public
+from pycantus.volpiano.utils import clean_volpiano, normalize_liquescents
 from core.chant_processor import ChantProcessor
 import logging
 from ete3 import Tree
@@ -113,7 +113,7 @@ class Mafft():
             raise RuntimeError("Input file must be defined"
                                "before adding a chant")
 
-        processed = pycantus.clean_volpiano(volpiano, keep_boundaries=False, keep_bars=False)
+        processed = clean_volpiano(volpiano, keep_boundaries=False, keep_bars=False)
         
         self._sequences_to_align.append((processed, volpiano_id, cantus_id, siglum))
 
@@ -140,8 +140,8 @@ class Mafft():
         mafft_aligned_melodies = [mel.replace("y", "b").replace("Y", "B").replace("i", "j").replace("I", "J").replace("x", "m").replace("X", "M").replace("z", "q").replace("Z", "Q")
                                   for mel in mafft_aligned_melodies]
         if not keep_liquescents:
-            mafft_aligned_melodies = [pycantus.normalize_liquescents(mel) for mel in mafft_aligned_melodies]
-            volpianos = [pycantus.normalize_liquescents(vol) for vol in volpianos]
+            mafft_aligned_melodies = [normalize_liquescents(mel) for mel in mafft_aligned_melodies]
+            volpianos = [normalize_liquescents(vol) for vol in volpianos]
 
         melodies_with_boundaries = []
         word_indices = []

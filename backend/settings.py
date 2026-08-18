@@ -25,7 +25,8 @@ SECRET_KEY = 'cu$y+@vgyk08(tiu$*0_lr4euy07za+l7sv@(*6zzd367r4+x!'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False if os.getenv("DEBUG_MODE", "True") == "False" else True
 
-ALLOWED_HOSTS = [os.getenv("ALLOWED_HOST", "localhost")]
+allowed_host = os.getenv("ALLOWED_HOST", "localhost")
+ALLOWED_HOSTS = list({allowed_host, "localhost", "127.0.0.1"})
 
 
 # Application definition
@@ -39,9 +40,19 @@ INSTALLED_APPS = [
     'melodies.apps.MelodiesConfig',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework.authtoken',
     'corsheaders',
     'gunicorn'
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
+}
 
 MIDDLEWARE = [
     # CORS
@@ -81,12 +92,16 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
-DATABASE_NAME = 'chants.db'
+# SQLite lives in data/ for both local runserver and Docker (bind-mounted).
+# DATABASE_PATH can override the location; otherwise use <BASE_DIR>/data/chants.db.
+_default_db_path = os.path.join(BASE_DIR, 'data', 'chants.db')
+os.makedirs(os.path.dirname(_default_db_path), exist_ok=True)
+DATABASE_NAME = os.getenv('DATABASE_PATH', _default_db_path)
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, DATABASE_NAME),
+        'NAME': DATABASE_NAME,
         'USER': 'root',
         'PASSWORD': '123456',
         'HOST': '127.0.0.1',

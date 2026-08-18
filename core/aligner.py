@@ -4,7 +4,7 @@ import uuid
 import logging
 from django.http.response import JsonResponse
 from rest_framework import status
-from core import pycantus # TODO replace by pycantus library once it will be public
+from pycantus.volpiano.utils import normalize_liquescents
  
 
 from melodies.models import Chant
@@ -42,10 +42,19 @@ class Aligner():
 
         for i in range(len(ids)):
             volpiano_separators = ChantProcessor.insert_separator_chars(volpianos[i])
-            volpiano_syllables = ChantProcessor.get_syllables_from_alpiano(volpiano_separators)[1:-1]
+            volpiano_words = ChantProcessor.get_syllables_from_alpiano(volpiano_separators)
+            # Keep the historical [1:-1] word count so poorly separable
+            # melodies still appear in the same error dialog as before.
+            legacy_volpiano_words = volpiano_words[1:-1]
             text_syllables = ChantProcessor.get_syllables_from_text(texts[i])
+            is_compatible = ChantProcessor.check_volpiano_text_compatibility(
+                legacy_volpiano_words, text_syllables)
 
-            if not ChantProcessor.check_volpiano_text_compatibility(volpiano_syllables, text_syllables):
+            volpiano_syllables = ChantProcessor.strip_clef_and_end_words(volpiano_words)
+            volpiano_syllables = ChantProcessor.strip_barlines_from_volpiano_words(
+                volpiano_syllables)
+
+            if not is_compatible:
                 text_syllables = cls._extend_text_to_volpiano([], volpiano_syllables)
                 error_sources.append(sources[i])
                 error_ids.append(i)
@@ -663,7 +672,7 @@ class Aligner():
 
         # replace liquescents by their default alternatives and fix beginnings and ends
         if not keep_liquescents:
-            volpianos = [ChantProcessor.fix_volpiano_beginnings_and_ends(pycantus.normalize_liquescents(vol))
+            volpianos = [ChantProcessor.fix_volpiano_beginnings_and_ends(normalize_liquescents(vol))
                         for vol in volpianos]
         else:
             volpianos = [ChantProcessor.fix_volpiano_beginnings_and_ends(vol)

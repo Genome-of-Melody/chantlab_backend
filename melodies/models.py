@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -28,7 +29,42 @@ class Chant(models.Model):
     dataset_name = models.TextField(blank=True, null=True)
     dataset_idx = models.IntegerField(blank=True, null=True)
     century_code = models.TextField(blank=True, null=True)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='chants',
+        blank=True,
+        null=True,
+    )
 
     class Meta:
         managed = True
         db_table = 'chant'
+
+
+class SavedAlignment(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='saved_alignments',
+    )
+    name = models.CharField(max_length=255)
+    data = models.TextField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'saved_alignment'
+        unique_together = ('user', 'name')
+
+
+class UserSettings(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='chantlab_settings',
+    )
+    data = models.TextField(default='{}')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'user_settings'

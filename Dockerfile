@@ -16,7 +16,7 @@ RUN conda create -n chantlab python=3.11 && conda clean -afy
 
 # Activate environment and install dependencies
 COPY ./requirements.txt .
-RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && conda activate chantlab && pip install -r requirements.txt"
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && conda activate chantlab && pip install -r requirements.txt && pip install --no-deps chant21==0.4.6"
 
 # Install MAFFT
 RUN wget https://mafft.cbrc.jp/alignment/software/mafft_7.505-1_amd64.deb \
@@ -51,8 +51,12 @@ COPY ./mrbayes-temp /opt/chantlab_backend/mrbayes-temp
 COPY ./resources /opt/chantlab_backend/resources
 COPY ./melodies /opt/chantlab_backend/melodies
 COPY ./scripts /opt/chantlab_backend/scripts
-COPY ./chants.db /opt/chantlab_backend/chants.db
+COPY ./seeds /opt/chantlab_backend/seeds
 COPY ./manage.py /opt/chantlab_backend/manage.py
+
+# SQLite lives here so a host bind-mount of this directory persists the DB
+RUN mkdir -p /opt/chantlab_backend/data
+ENV DATABASE_PATH=/opt/chantlab_backend/data/chants.db
 
 # Set working directory
 WORKDIR /opt/chantlab_backend
