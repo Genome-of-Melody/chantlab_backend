@@ -3,6 +3,17 @@
 from django.db import migrations, models
 
 
+def create_chant_table_if_missing(apps, schema_editor):
+    # 0001 used to set managed=False, so a fresh SQLite file never got a
+    # `chant` table. Create it before AddField tries to rebuild it.
+    Chant = apps.get_model('melodies', 'Chant')
+    connection = schema_editor.connection
+    with connection.cursor() as cursor:
+        tables = connection.introspection.table_names(cursor)
+    if Chant._meta.db_table not in tables:
+        schema_editor.create_model(Chant)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,6 +21,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(create_chant_table_if_missing, migrations.RunPython.noop),
         migrations.AddField(
             model_name='chant',
             name='century_code',
