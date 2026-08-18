@@ -84,7 +84,7 @@ def load_cantuscorpus():
             'source_id': _text(chant.srclink),
             'melody_id': _text(chant.melody_id),
             'drupal_path': _text(chant.chantlink),
-            'full_text': _text(chant.full_text),
+            'full_text': _text(chant.full_text) or '',
             'volpiano': _text(chant.melody),
             'dataset_name': DATASET_NAME,
             'century_code': _century_code(century),
