@@ -54,6 +54,10 @@ COPY ./scripts /opt/chantlab_backend/scripts
 COPY ./seeds /opt/chantlab_backend/seeds
 COPY ./manage.py /opt/chantlab_backend/manage.py
 
+# SQLite lives here so a host bind-mount of this directory persists the DB
+RUN mkdir -p /opt/chantlab_backend/data
+ENV DATABASE_PATH=/opt/chantlab_backend/data/chants.db
+
 # Set working directory
 WORKDIR /opt/chantlab_backend
 

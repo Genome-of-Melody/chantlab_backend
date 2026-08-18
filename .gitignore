@@ -60,6 +60,10 @@ testem.log
 Thumbs.db
 
 # Runtime database (shared datasets are seeded from seeds/default_datasets/)
+# Canonical location is data/chants.db. Root chants.db is a leftover path.
 chants.db
+data/*.db
+data/*.db-wal
+data/*.db-shm
 *.sqlite3
 

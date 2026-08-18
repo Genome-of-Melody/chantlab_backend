@@ -92,12 +92,16 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
-DATABASE_NAME = 'chants.db'
+# SQLite lives in data/ for both local runserver and Docker (bind-mounted).
+# DATABASE_PATH can override the location; otherwise use <BASE_DIR>/data/chants.db.
+_default_db_path = os.path.join(BASE_DIR, 'data', 'chants.db')
+os.makedirs(os.path.dirname(_default_db_path), exist_ok=True)
+DATABASE_NAME = os.getenv('DATABASE_PATH', _default_db_path)
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, DATABASE_NAME),
+        'NAME': DATABASE_NAME,
         'USER': 'root',
         'PASSWORD': '123456',
         'HOST': '127.0.0.1',
