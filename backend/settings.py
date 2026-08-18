@@ -28,6 +28,13 @@ DEBUG = False if os.getenv("DEBUG_MODE", "True") == "False" else True
 allowed_host = os.getenv("ALLOWED_HOST", "localhost")
 ALLOWED_HOSTS = list({allowed_host, "localhost", "127.0.0.1"})
 
+# Reverse-proxy URL prefix, e.g. /chantlab
+_script_name = os.getenv("FORCE_SCRIPT_NAME", "").strip().rstrip("/")
+if _script_name:
+    if not _script_name.startswith("/"):
+        _script_name = "/" + _script_name
+    FORCE_SCRIPT_NAME = _script_name
+
 
 # Application definition
 

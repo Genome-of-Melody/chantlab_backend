@@ -35,6 +35,7 @@ FROM python:3.11-slim-bullseye
 # Copy files from build stage
 COPY --from=builder /usr/bin/mafft /usr/bin/mafft
 COPY --from=builder /usr/libexec/mafft /usr/libexec/mafft
+ENV MAFFT_PATH=/usr/bin/mafft
 COPY --from=builder /opt/mrbayes/ /opt/mrbayes/
 COPY --from=builder /usr/local/bin/mb /usr/local/bin/mb
 COPY --from=builder /opt/conda /opt/conda

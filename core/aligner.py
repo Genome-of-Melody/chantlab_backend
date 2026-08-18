@@ -665,7 +665,7 @@ class Aligner():
                 return JsonResponse({'message': 'Chant with id ' + str(id) + ' does not exist'},
                     status=status.HTTP_404_NOT_FOUND)
 
-            texts.append(chant.full_text)
+            texts.append(chant.full_text if chant.full_text is not None else "")
             volpianos.append(chant.volpiano if chant.volpiano is not None else "")
         
 
