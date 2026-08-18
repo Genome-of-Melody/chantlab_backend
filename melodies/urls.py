@@ -5,13 +5,13 @@ from melodies import account_views
 
 urlpatterns = [
     url(r'admin/', admin.site.urls),  #navigation url for admin page
-    url(r'^api/auth/register/$', account_views.register),
-    url(r'^api/auth/login/$', account_views.login_view),
-    url(r'^api/auth/logout/$', account_views.logout_view),
-    url(r'^api/auth/me/$', account_views.me),
-    url(r'^api/alignments/$', account_views.alignment_list),
-    url(r'^api/alignments/(?P<name>.+)/$', account_views.alignment_detail),
-    url(r'^api/settings/$', account_views.user_settings),
+    url(r'^api/chants/auth/register/$', account_views.register),
+    url(r'^api/chants/auth/login/$', account_views.login_view),
+    url(r'^api/chants/auth/logout/$', account_views.logout_view),
+    url(r'^api/chants/auth/me/$', account_views.me),
+    url(r'^api/chants/alignments/$', account_views.alignment_list),
+    url(r'^api/chants/alignments/(?P<name>.+)/$', account_views.alignment_detail),
+    url(r'^api/chants/settings/$', account_views.user_settings),
     url(r'^api/chants/$', views.chant_list),
     url(r'^api/chants/(?P<pk>[0-9]+)$', views.chant_display),
     url(r'^api/chants/align/$', views.chant_align),
