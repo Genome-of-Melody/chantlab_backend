@@ -44,6 +44,65 @@ class ChantProcessor():
 
         return volpiano
 
+    # Single (3), double (4) and bold (5) barlines in Volpiano.
+    BARLINE_CHARS = '345'
+
+    @classmethod
+    def strip_clef_and_end_words(cls, volpiano_words):
+        """Drop leading clef and trailing bar tokens without discarding notes.
+
+        Unlike slicing [1:-1], a last word such as 'h4' or 'h5' keeps the notes.
+        """
+        words = [[syllable for syllable in word] for word in volpiano_words]
+
+        def joined(word):
+            return ''.join(word)
+
+        if words:
+            first = joined(words[0])
+            if first and set(first) <= {'1'}:
+                words = words[1:]
+            elif words[0] and words[0][0].startswith('1'):
+                words[0][0] = words[0][0].lstrip('1')
+                if not words[0][0]:
+                    words[0] = words[0][1:]
+                if not words[0]:
+                    words = words[1:]
+
+        while words:
+            last = joined(words[-1])
+            if last and set(last) <= set(cls.BARLINE_CHARS):
+                words = words[:-1]
+                continue
+            if words[-1]:
+                words[-1][-1] = words[-1][-1].rstrip(cls.BARLINE_CHARS)
+                if not words[-1][-1]:
+                    words[-1] = words[-1][:-1]
+                if not words[-1]:
+                    words = words[:-1]
+                    continue
+            break
+
+        return words
+
+    @classmethod
+    def strip_barlines_from_volpiano_words(cls, volpiano_words):
+        """Remove barline characters 3, 4 and 5 from syllable content.
+
+        Bar-only words and syllables are dropped. Word bars and the final
+        double bar are added later when combining volpiano with text.
+        """
+        cleaned_words = []
+        for word in volpiano_words:
+            cleaned_word = []
+            for syllable in word:
+                cleaned_syllable = ''.join(
+                    ch for ch in syllable if ch not in cls.BARLINE_CHARS)
+                if cleaned_syllable:
+                    cleaned_word.append(cleaned_syllable)
+            if cleaned_word:
+                cleaned_words.append(cleaned_word)
+        return cleaned_words
 
     @classmethod
     def check_volpiano_text_compatibility(cls, volpiano_words, text_words):
@@ -193,7 +252,7 @@ class ChantProcessor():
 
     def fix_volpiano_beginnings_and_ends(volpiano):
         if volpiano[:4] != "1---" or volpiano[-4:] != "---4":
-            fixed_volpiano = volpiano.strip("134-")
+            fixed_volpiano = volpiano.strip("1345-")
             fixed_volpiano = "1---" + fixed_volpiano + "---4"
             #logging.error("The correct beginning and end of volpiano '{}' is missing, fixed to '{}'".format(volpiano, fixed_volpiano))
             volpiano = fixed_volpiano

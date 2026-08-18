@@ -42,10 +42,19 @@ class Aligner():
 
         for i in range(len(ids)):
             volpiano_separators = ChantProcessor.insert_separator_chars(volpianos[i])
-            volpiano_syllables = ChantProcessor.get_syllables_from_alpiano(volpiano_separators)[1:-1]
+            volpiano_words = ChantProcessor.get_syllables_from_alpiano(volpiano_separators)
+            # Keep the historical [1:-1] word count so poorly separable
+            # melodies still appear in the same error dialog as before.
+            legacy_volpiano_words = volpiano_words[1:-1]
             text_syllables = ChantProcessor.get_syllables_from_text(texts[i])
+            is_compatible = ChantProcessor.check_volpiano_text_compatibility(
+                legacy_volpiano_words, text_syllables)
 
-            if not ChantProcessor.check_volpiano_text_compatibility(volpiano_syllables, text_syllables):
+            volpiano_syllables = ChantProcessor.strip_clef_and_end_words(volpiano_words)
+            volpiano_syllables = ChantProcessor.strip_barlines_from_volpiano_words(
+                volpiano_syllables)
+
+            if not is_compatible:
                 text_syllables = cls._extend_text_to_volpiano([], volpiano_syllables)
                 error_sources.append(sources[i])
                 error_ids.append(i)
