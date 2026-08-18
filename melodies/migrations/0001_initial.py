@@ -42,7 +42,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'chant',
-                'managed': False,
+                'managed': True,
             },
         ),
     ]
