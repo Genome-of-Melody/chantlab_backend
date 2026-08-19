@@ -57,7 +57,7 @@ class Aligner():
             if not is_compatible:
                 text_syllables = cls._extend_text_to_volpiano([], volpiano_syllables)
                 error_sources.append(sources[i])
-                error_ids.append(i)
+                error_ids.append(ids[i])
             success_sources.append(sources[i])
             success_ids.append(ids[i])
             success_urls.append(urls[i])
@@ -238,8 +238,9 @@ class Aligner():
                     # found an error, the alignment will be run again
                     # finished = False
                     logging.error(str(e))
-                    error_sources.append(sources[id])
-                    error_ids.append(id)
+                    if id != -1:
+                        error_sources.append(sources[id])
+                        error_ids.append(ids[id])
 
             cls._cleanup(mafft_inputs_path)   # Comment out this cleanup to retain MAFFT output files
         if concatenated:
@@ -401,8 +402,9 @@ class Aligner():
                     # found an error, the alignment will be run again
                     # finished = False
                     logging.error(str(e))
-                    error_sources.append(sources[id])
-                    error_ids.append(id)
+                    if id != -1:
+                        error_sources.append(sources[id])
+                        error_ids.append(ids[id])
 
             cls._cleanup(mafft_inputs_path)
 
@@ -649,7 +651,7 @@ class Aligner():
                 cantus_id = chant.cantus_id if chant.cantus_id else ""
                 sources.append(source)
 
-                urls.append(chant.drupal_path)
+                urls.append(chant.chantlink)
 
                 newick_name = ChantProcessor.build_chant_newick_name(chant)
                 if newick_name in used_newick_names:

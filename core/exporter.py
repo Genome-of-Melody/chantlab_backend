@@ -1,7 +1,10 @@
-from melodies.models import Chant
 from django.http import HttpResponse
 
 import csv
+
+from core.cantus_schema import V1_EXPORT_FIELDS, chant_to_v1_row
+from melodies.models import Chant
+
 
 class Exporter():
     '''
@@ -11,19 +14,18 @@ class Exporter():
     @classmethod
     def export_to_csv(cls, ids):
         '''
-        Create a CSV file of chants
+        Create a CantusCorpus v1.0 CSV file of chants
         '''
 
         chants = Chant.objects.filter(pk__in=ids)
-        opts = chants.model._meta
-        field_names = [field.name for field in opts.fields if field.name != 'owner']
 
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment;filename=dataset.csv'
-        
+
         writer = csv.writer(response)
-        writer.writerow(field_names)
+        writer.writerow(V1_EXPORT_FIELDS)
         for chant in chants:
-            writer.writerow([getattr(chant, field) for field in field_names])
-            
-        return HttpResponse(response, content_type='text/csv')
+            row = chant_to_v1_row(chant)
+            writer.writerow([row[field] for field in V1_EXPORT_FIELDS])
+
+        return response

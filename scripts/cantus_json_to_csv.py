@@ -16,37 +16,30 @@ __author__ = "Jan Hajic jr."
 
 
 CSV_KEYS = [
-    'id',
-    'corpus_id',
+    'chantlink',
     'incipit',
     'cantus_id',
     'mode',
-    'finalis',
-    'differentia',
     'siglum',
     'position',
     'folio',
     'sequence',
-    'marginalia',
-    'cao_concordances',
-    'feast_id',
-    'genre_id',
-    'office_id',
-    'source_id',
+    'feast',
+    'feast_code',
+    'genre',
+    'office',
+    'srclink',
     'melody_id',
-    'drupal_path',
     'full_text',
-    'full_text_manuscript',
-    'volpiano',
-    'notes',
-    'dataset_name',
-    'dataset_idx'
+    'melody',
+    'db',
+    'image',
 ]
 REQUIRED_NONNULL_CSV_KEYS = [
     'incipit',
     'siglum',
     'full_text',
-    'volpiano',
+    'melody',
 ]
 
 JSON_KEYS = [
@@ -64,19 +57,30 @@ JSON_KEYS = [
             "image",
             "mode",
             "db",
+            "cantus_id",
+            "melody_id",
+            "sequence",
+            "century",
 ]
 
 JSON_KEYS2CSV_KEYS = {
     'siglum': 'siglum',
     'incipit': 'incipit',
     'fulltext': 'full_text',
-    'melody': 'volpiano',
+    'melody': 'melody',
+    'srclink': 'srclink',
+    'chantlink': 'chantlink',
     'folio': 'folio',
-    'feast': 'feast_id',
-    'genre': 'genre_id',
-    'office': 'office_id',
+    'feast': 'feast',
+    'genre': 'genre',
+    'office': 'office',
     'position': 'position',
+    'image': 'image',
     'mode': 'mode',
+    'db': 'db',
+    'cantus_id': 'cantus_id',
+    'melody_id': 'melody_id',
+    'sequence': 'sequence',
 }
 CSV_KEYS2JSON_KEYS = {v: k for k, v in JSON_KEYS2CSV_KEYS.items() }
 # List of CSV columns to which nothing from JSON can be used to fill information
@@ -133,11 +137,7 @@ def genre2genre_id(genre: str):
     genre_id = GENRE_MAP_JSON2CSV[genre]
     return genre_id
 
-JSON_KEYS_REQUIRING_PROCESSING = {
-    'office': office2office_id,
-    'feast': feast2feast_id,
-    'genre': genre2genre_id,
-}
+JSON_KEYS_REQUIRING_PROCESSING = {}
 
 
 
