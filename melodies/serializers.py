@@ -10,8 +10,8 @@ class ChantSerializer(serializers.ModelSerializer):
         fields = ('id', 'corpus_id', 'incipit', 'cantus_id',
             'mode', 'finalis', 'differentia', 'siglum', 'position',
             'folio', 'sequence', 'marginalia', 'cao_concordances',
-            'feast_id', 'genre_id', 'office_id', 'source_id', 'melody_id',
-            'drupal_path', 'full_text', 'full_text_manuscript', 'volpiano', 'notes',
+            'feast_id', 'genre_id', 'office_id', 'srclink', 'melody_id',
+            'chantlink', 'db', 'full_text', 'full_text_manuscript', 'volpiano', 'image',
             'dataset_name', 'dataset_idx', 'century_code', 'is_owned')
 
     def get_is_owned(self, obj):

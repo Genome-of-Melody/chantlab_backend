@@ -4,6 +4,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 import pandas as pd
 
+from core.cantus_schema import UploadError
 from core.uploader import Uploader
 from melodies.access import DEFAULT_DATASET_NAMES
 from melodies.management.cantuscorpus import (
@@ -77,7 +78,11 @@ class Command(BaseCommand):
             deleted, _ = existing.delete()
             self.stdout.write('Removed {} existing {} rows.'.format(deleted, name))
 
-        new_idx = Uploader.upload_dataframe(df, name, owner=None, dataset_idx=old_idx)
+        try:
+            new_idx = Uploader.upload_dataframe(df, name, owner=None, dataset_idx=old_idx)
+        except UploadError as exc:
+            self.stderr.write('Failed to load {}: {}'.format(name, exc))
+            return
         self.stdout.write(self.style.SUCCESS(
             'Loaded {} from {} ({} rows, dataset_idx={}).'.format(
                 name, source_label, len(df), new_idx

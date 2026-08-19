@@ -5,12 +5,14 @@ from rest_framework.permissions import IsAuthenticated
 import logging
 from core.aligner import Aligner
 from core import mrbayes
+from core.cantus_schema import UploadError
 from core.chant_processor import ChantProcessor
 from core.exporter import Exporter
 from core.uploader import Uploader
 import json
 import pandas as pd
 from django.db.models import Q
+from pandas.errors import ParserError
 
 from melodies.access import (
     DEFAULT_DATASET_NAMES,
@@ -23,14 +25,15 @@ from melodies.access import (
 from melodies.models import Chant
 from melodies.serializers import ChantSerializer
 
-# List view omits bulky fields (manuscript text, notes, etc.) that the table
+# List view omits bulky fields (manuscript text, image URLs, etc.) that the table
 # does not display. Volpiano and full_text are kept for the dashboard and
 # for alignment metadata stored from the current list selection.
 CHANT_LIST_FIELDS = (
     'id', 'corpus_id', 'incipit', 'cantus_id', 'mode', 'finalis', 'differentia',
     'siglum', 'position', 'folio', 'feast_id', 'genre_id', 'office_id',
-    'source_id', 'full_text', 'volpiano', 'dataset_name', 'dataset_idx',
+    'srclink', 'full_text', 'volpiano', 'dataset_name', 'dataset_idx',
 )
+MAX_UPLOAD_BYTES = 80 * 1024 * 1024
 
 
 def _chants_dataframe(chants):
@@ -38,10 +41,27 @@ def _chants_dataframe(chants):
     return pd.DataFrame.from_records(list(chants.values_list()), columns=field_names)
 
 
+def _read_upload_csv(file):
+    if file.size and file.size > MAX_UPLOAD_BYTES:
+        return None, JsonResponse(
+            {'message': 'File is too large (80 MB maximum)'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        return pd.read_csv(file), None
+    except (ParserError, UnicodeDecodeError, ValueError):
+        return None, JsonResponse(
+            {'message': 'The file could not be read as CSV'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
 def _validate_new_dataset_name(name, user):
     name = (name or '').strip()
     if not name:
         return None, JsonResponse({'message': 'Dataset name is required'}, status=status.HTTP_400_BAD_REQUEST)
+    if len(name) > 255:
+        return None, JsonResponse({'message': 'Dataset name is too long'}, status=status.HTTP_400_BAD_REQUEST)
     if is_default_dataset_name(name):
         return None, JsonResponse(
             {'message': 'That name is reserved for a default dataset'},
@@ -123,8 +143,14 @@ def upload_data(request):
         if error:
             return error
 
-        df = pd.read_csv(file)
-        new_index = Uploader.upload_dataframe(df, name, owner=request.user)
+        df, error = _read_upload_csv(file)
+        if error:
+            return error
+
+        try:
+            new_index = Uploader.upload_dataframe(df, name, owner=request.user)
+        except UploadError as exc:
+            return JsonResponse({'message': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         return JsonResponse({
             "name": name,
@@ -192,7 +218,10 @@ def create_dataset(request):
         return JsonResponse({'message': 'No visible chants to copy'}, status=status.HTTP_400_BAD_REQUEST)
 
     chants_df = _chants_dataframe(chants)
-    new_index = Uploader.upload_dataframe(chants_df, dataset_name, owner=request.user)
+    try:
+        new_index = Uploader.upload_dataframe(chants_df, dataset_name, owner=request.user)
+    except UploadError as exc:
+        return JsonResponse({'message': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
     return JsonResponse({
         "name": dataset_name,
@@ -217,7 +246,10 @@ def add_to_dataset(request):
         return JsonResponse({'message': 'No visible chants to copy'}, status=status.HTTP_400_BAD_REQUEST)
 
     chants_df = _chants_dataframe(chants)
-    dataset_name = Uploader.add_to_dataset(chants_df, dataset_idx, owner=request.user)
+    try:
+        dataset_name = Uploader.add_to_dataset(chants_df, dataset_idx, owner=request.user)
+    except UploadError as exc:
+        return JsonResponse({'message': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
     return JsonResponse({
         "name": dataset_name,

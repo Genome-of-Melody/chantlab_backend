@@ -651,7 +651,7 @@ class Aligner():
                 cantus_id = chant.cantus_id if chant.cantus_id else ""
                 sources.append(source)
 
-                urls.append(chant.drupal_path)
+                urls.append(chant.chantlink)
 
                 newick_name = ChantProcessor.build_chant_newick_name(chant)
                 if newick_name in used_newick_names:

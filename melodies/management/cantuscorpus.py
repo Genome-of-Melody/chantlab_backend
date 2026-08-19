@@ -1,47 +1,14 @@
-import os
-
 import pandas as pd
-from django.conf import settings
+from core.cantus_schema import (
+    century_code_from_value,
+    normalize_feast_id,
+    normalize_genre_id,
+    normalize_office_id,
+    text_value,
+)
 
 DATASET_NAME = 'CantusCorpus v1.0'
 PYCANTUS_DATASET_KEY = 'cantuscorpus_v1.0'
-
-
-def _text(value):
-    if value is None or (isinstance(value, float) and pd.isna(value)):
-        return None
-    text = str(value).strip()
-    if not text or text.lower() == 'nan':
-        return None
-    return text
-
-
-def _lookup_map(csv_path, key_column):
-    table = pd.read_csv(csv_path, dtype=str)
-    mapping = {}
-    for _, row in table.iterrows():
-        key = _text(row.get(key_column))
-        value = row.get('id')
-        if key and value and key not in mapping:
-            mapping[key] = value
-            mapping[key.lower()] = value
-    return mapping
-
-
-def _lookup(mapping, value):
-    key = _text(value)
-    if key is None:
-        return None
-    return mapping.get(key) or mapping.get(key.lower())
-
-
-def _century_code(num_century):
-    try:
-        century = int(float(num_century))
-    except (TypeError, ValueError):
-        return None
-    start = (century - 1) * 100
-    return 'century_{}_{}'.format(start, start + 99)
 
 
 def load_cantuscorpus():
@@ -49,17 +16,13 @@ def load_cantuscorpus():
 
     Uses ``pycantus.data.load_dataset``, which reads the packaged CSVs or
     downloads them from the CantusCorpus GitHub release if they are missing.
-    All catalogue records are kept, including those without Volpiano; the
-    chant list can hide them with its Volpiano filter.
+    All catalogue records are kept, including those without Volpiano.
+    The chant list API hides them by default (hideChantsWithoutVolpiano).
     '''
     from pycantus.data import load_dataset
 
     corpus = load_dataset(PYCANTUS_DATASET_KEY)
 
-    static_dir = os.path.join(settings.BASE_DIR, 'scripts', 'static')
-    genre_map = _lookup_map(os.path.join(static_dir, 'genre.csv'), 'name')
-    office_map = _lookup_map(os.path.join(static_dir, 'office.csv'), 'name')
-    feast_map = _lookup_map(os.path.join(static_dir, 'feast.csv'), 'name')
     century_by_link = {
         source.srclink: source.numeric_century
         for source in corpus.sources
@@ -69,24 +32,26 @@ def load_cantuscorpus():
     rows = []
     for chant in corpus.chants:
         century = chant.century if chant.century is not None else century_by_link.get(chant.srclink)
-        sequence = pd.to_numeric(_text(chant.sequence), errors='coerce')
+        sequence = pd.to_numeric(text_value(chant.sequence), errors='coerce')
         rows.append({
-            'incipit': _text(chant.incipit),
-            'cantus_id': _text(chant.cantus_id),
-            'mode': _text(chant.mode),
-            'siglum': _text(chant.siglum),
-            'position': _text(chant.position),
-            'folio': _text(chant.folio),
+            'incipit': text_value(chant.incipit),
+            'cantus_id': text_value(chant.cantus_id),
+            'mode': text_value(chant.mode),
+            'siglum': text_value(chant.siglum),
+            'position': text_value(chant.position),
+            'folio': text_value(chant.folio),
             'sequence': None if pd.isna(sequence) else float(sequence),
-            'feast_id': _lookup(feast_map, chant.feast),
-            'genre_id': _lookup(genre_map, chant.genre),
-            'office_id': _lookup(office_map, chant.office),
-            'source_id': _text(chant.srclink),
-            'melody_id': _text(chant.melody_id),
-            'drupal_path': _text(chant.chantlink),
-            'full_text': _text(chant.full_text) or '',
-            'volpiano': _text(chant.melody),
+            'feast_id': normalize_feast_id(chant.feast),
+            'genre_id': normalize_genre_id(chant.genre),
+            'office_id': normalize_office_id(chant.office),
+            'srclink': text_value(chant.srclink),
+            'melody_id': text_value(chant.melody_id),
+            'chantlink': text_value(chant.chantlink),
+            'db': text_value(chant.db),
+            'full_text': text_value(chant.full_text) or '',
+            'volpiano': text_value(chant.melody),
+            'image': text_value(chant.image),
             'dataset_name': DATASET_NAME,
-            'century_code': _century_code(century),
+            'century_code': century_code_from_value(century),
         })
     return pd.DataFrame(rows)
