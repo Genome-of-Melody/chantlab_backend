@@ -24,36 +24,62 @@ def seed_dir():
 class Command(BaseCommand):
     help = 'Load shared default datasets into the runtime database if they are missing.'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--force',
+            action='store_true',
+            help='Replace existing default datasets, keeping their dataset_idx values.',
+        )
+
     def handle(self, *args, **options):
+        force = options['force']
+
         if CANTUS_DATASET_NAME in DEFAULT_DATASET_NAMES:
-            if Chant.objects.filter(dataset_name=CANTUS_DATASET_NAME, owner__isnull=True).exists():
-                self.stdout.write('{} already present, skipping.'.format(CANTUS_DATASET_NAME))
-            else:
-                self.stdout.write('Loading {} from PyCantus ...'.format(CANTUS_DATASET_NAME))
-                df = load_cantuscorpus()
-                new_idx = Uploader.upload_dataframe(df, CANTUS_DATASET_NAME, owner=None)
-                self.stdout.write(self.style.SUCCESS(
-                    'Loaded {} from PyCantus ({} rows, dataset_idx={}).'.format(
-                        CANTUS_DATASET_NAME, len(df), new_idx
-                    )
-                ))
+            self._seed_dataset(
+                CANTUS_DATASET_NAME,
+                lambda: load_cantuscorpus(),
+                force,
+                source_label='PyCantus',
+            )
 
         for name, filename in SEED_FILES:
             if name not in DEFAULT_DATASET_NAMES:
                 continue
-            if Chant.objects.filter(dataset_name=name, owner__isnull=True).exists():
-                self.stdout.write('{} already present, skipping.'.format(name))
-                continue
-
             path = os.path.join(seed_dir(), filename)
-            if not os.path.exists(path):
-                self.stderr.write('Seed file missing: {}'.format(path))
-                continue
+            self._seed_dataset(
+                name,
+                lambda seed_path=path: self._read_seed_csv(seed_path),
+                force,
+                source_label=filename,
+            )
 
-            df = pd.read_csv(path, compression='gzip')
-            new_idx = Uploader.upload_dataframe(df, name, owner=None)
-            self.stdout.write(self.style.SUCCESS(
-                'Loaded {} from {} ({} rows, dataset_idx={}).'.format(
-                    name, filename, len(df), new_idx
-                )
-            ))
+    def _read_seed_csv(self, path):
+        if not os.path.exists(path):
+            self.stderr.write('Seed file missing: {}'.format(path))
+            return None
+        return pd.read_csv(path, compression='gzip')
+
+    def _seed_dataset(self, name, load_df, force, source_label):
+        existing = Chant.objects.filter(dataset_name=name, owner__isnull=True)
+        old_idx = None
+        if existing.exists():
+            if not force:
+                self.stdout.write('{} already present, skipping.'.format(name))
+                return
+            old_idx = existing.values_list('dataset_idx', flat=True).first()
+
+        self.stdout.write('Loading {} from {} ...'.format(name, source_label))
+        df = load_df()
+        if df is None:
+            return
+
+        if existing.exists():
+            deleted, _ = existing.delete()
+            self.stdout.write('Removed {} existing {} rows.'.format(deleted, name))
+
+        new_idx = Uploader.upload_dataframe(df, name, owner=None, dataset_idx=old_idx)
+        self.stdout.write(self.style.SUCCESS(
+            'Loaded {} from {} ({} rows, dataset_idx={}).'.format(
+                name, source_label, len(df), new_idx
+            )
+        ))

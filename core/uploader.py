@@ -13,7 +13,7 @@ class Uploader():
     '''
 
     @classmethod
-    def upload_dataframe(cls, df, dataset_name, owner=None):
+    def upload_dataframe(cls, df, dataset_name, owner=None, dataset_idx=None):
         '''
         Upload a dataframe to database
         '''
@@ -31,13 +31,14 @@ class Uploader():
 
         df = cls._prepare_chant_dataframe(df, dataset_name, owner)
 
-        max_dataset_idx = Chant.objects.aggregate(Max('dataset_idx'))['dataset_idx__max']
-        new_dataset_index = 0 if max_dataset_idx is None else max_dataset_idx + 1
-        df['dataset_idx'] = new_dataset_index
+        if dataset_idx is None:
+            max_dataset_idx = Chant.objects.aggregate(Max('dataset_idx'))['dataset_idx__max']
+            dataset_idx = 0 if max_dataset_idx is None else max_dataset_idx + 1
+        df['dataset_idx'] = dataset_idx
 
-        df.to_sql('chant', con, if_exists='append', index=True, index_label="id")
+        df.to_sql('chant', con, if_exists='append', index=True, index_label="id", chunksize=5000)
 
-        return new_dataset_index
+        return dataset_idx
 
 
     @classmethod
@@ -67,7 +68,7 @@ class Uploader():
         df = cls._prepare_chant_dataframe(df, dataset_name, owner)
         df['dataset_idx'] = idx
 
-        df.to_sql('chant', con, if_exists='append', index=True, index_label="id")
+        df.to_sql('chant', con, if_exists='append', index=True, index_label="id", chunksize=5000)
 
         return dataset_name
 

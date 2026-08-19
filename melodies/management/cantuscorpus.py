@@ -49,12 +49,12 @@ def load_cantuscorpus():
 
     Uses ``pycantus.data.load_dataset``, which reads the packaged CSVs or
     downloads them from the CantusCorpus GitHub release if they are missing.
-    Only chants with a melody are kept.
+    All catalogue records are kept, including those without Volpiano; the
+    chant list can hide them with its Volpiano filter.
     '''
     from pycantus.data import load_dataset
 
-    corpus = load_dataset(PYCANTUS_DATASET_KEY, is_editable=True)
-    corpus.keep_melodic_chants()
+    corpus = load_dataset(PYCANTUS_DATASET_KEY)
 
     static_dir = os.path.join(settings.BASE_DIR, 'scripts', 'static')
     genre_map = _lookup_map(os.path.join(static_dir, 'genre.csv'), 'name')
